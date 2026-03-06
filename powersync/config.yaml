@@ -1,0 +1,36 @@
+# PowerSync self-hosted config for SyncMind
+
+replication:
+  connections:
+    - type: postgresql
+      uri: postgresql://syncmind:syncmind_dev_2026@syncmind-postgres:5432/syncmind
+      sslmode: disable
+
+storage:
+  type: mongodb
+  uri: mongodb://syncmind-mongo:27017/powersync_storage
+
+client_auth:
+  allow_temporary_tokens: true
+
+api:
+  tokens:
+    - "dev-token-syncmind-2026"
+
+sync_config:
+  content: |
+    config:
+      edition: 3
+    streams:
+      user_notes:
+        auto_subscribe: true
+        queries:
+          - SELECT id, title, content, source_url, tags, ai_summary, ai_tags, ai_connections, is_processed, created_at, updated_at, owner_id FROM notes
+      note_connections:
+        auto_subscribe: true
+        queries:
+          - SELECT id, source_note_id, target_note_id, relationship, confidence, created_at FROM connections
+      all_tags:
+        auto_subscribe: true
+        queries:
+          - SELECT id, name, note_count, created_at FROM tags

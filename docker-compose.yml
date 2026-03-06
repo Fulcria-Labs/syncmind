@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: syncmind-postgres
+    environment:
+      POSTGRES_DB: syncmind
+      POSTGRES_USER: syncmind
+      POSTGRES_PASSWORD: syncmind_dev_2026
+    ports:
+      - "5434:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: ["postgres", "-c", "wal_level=logical"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U syncmind -d syncmind"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mongo:
+    image: mongo:7.0
+    container_name: syncmind-mongo
+    command: --replSet rs0 --bind_ip_all --quiet
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  mongo-rs-init:
+    image: mongo:7.0
+    depends_on:
+      - mongo
+    restart: on-failure
+    entrypoint:
+      - bash
+      - -c
+      - 'mongosh --host syncmind-mongo:27017 --eval ''try{rs.status().ok && quit(0)} catch {} rs.initiate({_id: "rs0", version: 1, members: [{ _id: 0, host : "syncmind-mongo:27017" }]})'''
+
+  powersync:
+    image: journeyapps/powersync-service:latest
+    container_name: syncmind-powersync
+    depends_on:
+      mongo-rs-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./powersync:/config
+    environment:
+      POWERSYNC_CONFIG_PATH: /config/service.yaml
+      NODE_OPTIONS: --max-old-space-size=512
+      PS_DATA_SOURCE_URI: postgres://syncmind:syncmind_dev_2026@syncmind-postgres:5432/syncmind
+      PS_MONGO_URI: mongodb://syncmind-mongo:27017/powersync_storage
+      PS_PORT: "8089"
+      PS_JWKS_URL: http://syncmind-backend:6061/api/auth/keys
+    command: ["start", "-r", "unified"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8089/probes/liveness').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 1s
+      retries: 15
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: syncmind-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "6061:6061"
+    environment:
+      PORT: "6061"
+      DATABASE_URI: postgres://syncmind:syncmind_dev_2026@syncmind-postgres:5432/syncmind
+      POWERSYNC_URL: http://syncmind-powersync:8089
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+
+volumes:
+  pg_data:
+  mongo_data:

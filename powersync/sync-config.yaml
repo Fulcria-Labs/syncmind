@@ -1,0 +1,18 @@
+config:
+  edition: 3
+
+streams:
+  user_notes:
+    auto_subscribe: true
+    queries:
+      - SELECT id, title, content, source_url, tags, ai_summary, ai_tags, ai_connections, is_processed, created_at, updated_at, owner_id FROM notes
+
+  note_connections:
+    auto_subscribe: true
+    queries:
+      - SELECT id, source_note_id, target_note_id, relationship, confidence, created_at FROM connections
+
+  all_tags:
+    auto_subscribe: true
+    queries:
+      - SELECT id, name, note_count, created_at FROM tags
