@@ -2,22 +2,27 @@
 
 An offline-first AI research assistant that syncs across devices. Built with PowerSync, React, and Claude AI.
 
+**Works offline. Thinks with AI. Syncs everywhere.**
+
 ## Features
 
 - **Offline-First**: Create and browse research notes without internet. Changes sync automatically when connectivity returns.
-- **AI-Powered Analysis**: Notes are automatically summarized, tagged, and connected by AI.
-- **Knowledge Graph**: AI discovers relationships between your notes, building a connected knowledge base.
+- **AI-Powered Analysis**: Notes are automatically summarized, tagged, and connected by Claude AI (Haiku for fast processing).
+- **Knowledge Graph**: Interactive force-directed visualization of note connections. Drag nodes, click to navigate, see relationships on hover.
+- **Tag Cloud**: Visual topic frequency display in the sidebar. Click any tag to filter notes instantly.
 - **Ask Your Research**: Query across all your notes using natural language.
-- **Cross-Device Sync**: PowerSync keeps data in sync across all your devices via Sync Streams.
+- **Research Brief**: One-click AI-generated summary across all your notes.
+- **Cross-Device Sync**: PowerSync Sync Streams keep data in sync across all connected devices.
+- **Local-First Editing**: Full CRUD operations on local SQLite. Edits queue and sync when online.
 
 ## Tech Stack
 
-- **Frontend**: React + TypeScript + Vite
+- **Frontend**: React 18 + TypeScript + Vite
 - **Sync Engine**: PowerSync (self-hosted) with Sync Streams
 - **Backend**: Node.js + Express
 - **AI**: Claude (Anthropic API) via Haiku for fast processing
-- **Database**: PostgreSQL + MongoDB (PowerSync storage)
-- **Local Storage**: SQLite (via PowerSync WASM)
+- **Database**: PostgreSQL (primary) + MongoDB (PowerSync storage)
+- **Local Storage**: SQLite (via PowerSync WASM in browser)
 
 ## Quick Start
 
@@ -29,7 +34,7 @@ cd syncmind
 # 2. Set your Anthropic API key
 export ANTHROPIC_API_KEY=your_key_here
 
-# 3. Start all services
+# 3. Start all services (PostgreSQL, MongoDB, PowerSync, Backend)
 docker compose up -d
 
 # 4. Install and run frontend
@@ -41,26 +46,71 @@ Open http://localhost:5173
 ## Architecture
 
 ```
-Browser (SQLite) <--> PowerSync Service <--> PostgreSQL
-                                                 ^
-                                                 |
-                                          Backend (Express)
-                                                 |
-                                           Claude AI API
+Browser (SQLite via WASM)
+    |
+    |-- Local reads (instant, offline)
+    |-- Local writes (queued offline)
+    |
+    v
+PowerSync Service (Sync Streams)
+    |
+    |-- Bidirectional sync
+    |-- Conflict resolution
+    |
+    v
+PostgreSQL (source of truth)
+    ^
+    |
+Express Backend ----> Claude AI API
 ```
 
-PowerSync maintains a local SQLite database in the browser that syncs bidirectionally with PostgreSQL via Sync Streams. This enables:
+## How PowerSync Powers SyncMind
 
-1. **Instant reads**: All queries run against local SQLite
-2. **Offline writes**: Changes queue locally and sync when online
-3. **Real-time sync**: Changes from other devices appear automatically
+PowerSync is central to the architecture:
 
-## PowerSync Integration
+1. **Sync Streams** define granular data sync rules per table (notes, connections, tags) with owner-based filtering.
 
-- **Sync Streams** define what data syncs to each client (notes, connections, tags)
-- **Backend Connector** handles JWT auth and CRUD upload to PostgreSQL
-- **Local SQLite** provides instant, offline-capable queries
-- The app works fully offline - AI features gracefully degrade when disconnected
+2. **Local SQLite** via `@powersync/web` provides:
+   - Instant reads against local database (zero network latency)
+   - Full offline CRUD - create, edit, delete notes without connectivity
+   - Reactive queries via `useQuery` hooks that auto-update when data changes
+
+3. **Backend Connector** handles JWT authentication, CRUD upload to PostgreSQL, and automatic retry with conflict resolution.
+
+4. **Offline-First UX**: Visual sync status (online/offline/syncing), offline banner, AI features gracefully degrade while core note-taking always works.
+
+## How AI + Sync Work Together
+
+1. User creates a note (writes to local SQLite immediately)
+2. PowerSync syncs the note to PostgreSQL
+3. Backend detects unprocessed notes via polling
+4. Claude AI generates: summary, tags, and connections to related notes
+5. AI results written to PostgreSQL
+6. PowerSync syncs AI results back to the user's local SQLite
+7. UI updates reactively via `useQuery` hooks - no refresh needed
+
+AI processing happens server-side without blocking the user. Results appear automatically across all connected devices.
+
+## Project Structure
+
+```
+syncmind/
+  frontend/              # React + TypeScript + Vite
+    src/components/
+      KnowledgeGraph.tsx  # Force-directed graph visualization
+      TagCloud.tsx        # Topic frequency display
+      NoteEditor.tsx      # Create new notes
+      NoteList.tsx        # Searchable note list
+      NoteDetail.tsx      # Full note view with AI insights
+      AskAI.tsx           # Natural language Q&A
+    src/lib/
+      AppSchema.ts        # PowerSync table definitions
+      Connector.ts        # PowerSync backend connector
+  backend/               # Express API + AI processing
+  powersync/             # PowerSync service config + sync rules
+  db/                    # PostgreSQL schema
+  docker-compose.yml     # Full stack orchestration
+```
 
 ## License
 
