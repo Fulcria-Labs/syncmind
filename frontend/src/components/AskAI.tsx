@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { connector } from '../lib/PowerSyncProvider';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6061';
@@ -44,7 +45,7 @@ export function AskAI() {
       </div>
       {answer && (
         <div className="ai-answer">
-          <p>{answer}</p>
+          <ReactMarkdown>{answer}</ReactMarkdown>
         </div>
       )}
     </div>

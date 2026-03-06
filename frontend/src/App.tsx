@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useStatus, useQuery } from '@powersync/react';
+import ReactMarkdown from 'react-markdown';
 import { PowerSyncProvider, connector } from './lib/PowerSyncProvider';
 import { NoteEditor } from './components/NoteEditor';
 import { NoteList } from './components/NoteList';
@@ -93,7 +94,7 @@ function AppContent() {
             <h3>Research Brief</h3>
             <button onClick={() => setBriefContent('')} className="btn-secondary btn-sm">Close</button>
           </div>
-          <div className="brief-content">{briefContent}</div>
+          <div className="brief-content"><ReactMarkdown>{briefContent}</ReactMarkdown></div>
         </div>
       )}
 
