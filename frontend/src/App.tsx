@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useStatus, useQuery } from '@powersync/react';
 import ReactMarkdown from 'react-markdown';
 import { PowerSyncProvider, connector } from './lib/PowerSyncProvider';
@@ -8,6 +8,7 @@ import { NoteDetail } from './components/NoteDetail';
 import { AskAI } from './components/AskAI';
 import { KnowledgeGraph } from './components/KnowledgeGraph';
 import { TagCloud } from './components/TagCloud';
+import { SyncActivityFeed } from './components/SyncActivityFeed';
 import './App.css';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6061';
@@ -48,6 +49,40 @@ function AppContent() {
   const { data: noteCount } = useQuery<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM notes`);
   const count = noteCount[0]?.cnt ?? 0;
 
+  // Keyboard shortcuts
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    // Don't capture when typing in inputs
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+      if (e.key === 'Escape') {
+        target.blur();
+        e.preventDefault();
+      }
+      return;
+    }
+
+    if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+      e.preventDefault();
+      setShowEditor(true);
+    } else if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      const searchInput = document.querySelector('.search-input') as HTMLInputElement;
+      searchInput?.focus();
+    } else if (e.key === 'Escape') {
+      if (showEditor) setShowEditor(false);
+      else if (showAsk) setShowAsk(false);
+      else if (briefContent) setBriefContent('');
+      else if (selectedNote) setSelectedNote(null);
+    } else if (e.key === 'g' && !e.metaKey && !e.ctrlKey) {
+      setViewMode(prev => prev === 'list' ? 'graph' : 'list');
+    }
+  }, [showEditor, showAsk, briefContent, selectedNote]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
   const handleBrief = async () => {
     setBriefLoading(true);
     setBriefContent('');
@@ -75,6 +110,7 @@ function AppContent() {
           {count > 0 && <span className="note-count">{count} note{count !== 1 ? 's' : ''}</span>}
         </div>
         <div className="header-right">
+          <SyncActivityFeed />
           <SyncStatus />
         </div>
       </header>
@@ -195,6 +231,12 @@ function AppContent() {
                     <strong>Ask AI</strong>
                     <span>Query your research in natural language</span>
                   </div>
+                </div>
+                <div className="keyboard-hints">
+                  <span><kbd>Ctrl+N</kbd> New note</span>
+                  <span><kbd>Ctrl+K</kbd> Search</span>
+                  <span><kbd>G</kbd> Toggle graph</span>
+                  <span><kbd>Esc</kbd> Close/back</span>
                 </div>
               </div>
             )}
