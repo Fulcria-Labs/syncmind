@@ -60,6 +60,7 @@ export function NoteDetail({ noteId, onNavigate, onDeleted }: NoteDetailProps) {
   };
 
   const handleDelete = async () => {
+    if (!confirm(`Delete "${note?.title || 'this note'}"? This cannot be undone.`)) return;
     await powerSync.execute(`DELETE FROM connections WHERE source_note_id = ? OR target_note_id = ?`, [noteId, noteId]);
     await powerSync.execute(`DELETE FROM notes WHERE id = ?`, [noteId]);
     onDeleted?.();

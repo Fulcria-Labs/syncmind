@@ -45,6 +45,15 @@ cd frontend && npm install && npm run dev
 
 Open http://localhost:5173
 
+### Load Demo Data (Optional)
+
+```bash
+# Populate with sample research notes to explore all features
+docker compose exec postgres psql -U syncmind -d syncmind -f /docker-entrypoint-initdb.d/seed.sql
+```
+
+This loads 6 interconnected research notes covering AI, RAG, embeddings, and more - with pre-computed AI tags, summaries, and a knowledge graph ready to explore.
+
 ## Architecture
 
 ```

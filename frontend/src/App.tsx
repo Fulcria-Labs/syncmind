@@ -10,6 +10,7 @@ import { KnowledgeGraph } from './components/KnowledgeGraph';
 import { TagCloud } from './components/TagCloud';
 import { SyncActivityFeed } from './components/SyncActivityFeed';
 import { AgentChat } from './components/AgentChat';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6061';
@@ -252,9 +253,11 @@ function AppContent() {
 
 function App() {
   return (
-    <PowerSyncProvider>
-      <AppContent />
-    </PowerSyncProvider>
+    <ErrorBoundary>
+      <PowerSyncProvider>
+        <AppContent />
+      </PowerSyncProvider>
+    </ErrorBoundary>
   );
 }
 
