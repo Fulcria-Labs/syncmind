@@ -484,3 +484,105 @@ header {
   font-size: 1.4rem;
   margin-bottom: 2px;
 }
+
+/* View Toggle */
+.view-toggle {
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.toggle-btn {
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.toggle-btn.active {
+  background: var(--primary);
+  color: white;
+}
+
+.toggle-btn:hover:not(.active) {
+  background: var(--surface-hover);
+}
+
+/* Knowledge Graph */
+.graph-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.graph-container {
+  flex: 1;
+  background: var(--bg);
+  position: relative;
+}
+
+.knowledge-graph {
+  width: 100%;
+  height: 100%;
+}
+
+.knowledge-graph canvas {
+  display: block;
+}
+
+.graph-detail-panel {
+  width: 380px;
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 24px;
+  background: var(--surface);
+}
+
+/* Tag Cloud */
+.tag-cloud {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tag-cloud h3 {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.tag-cloud-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-cloud-item {
+  padding: 3px 10px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 14px;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tag-cloud-item:hover {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: var(--accent);
+}
+
+.tag-cloud-count {
+  font-size: 0.65em;
+  opacity: 0.6;
+}

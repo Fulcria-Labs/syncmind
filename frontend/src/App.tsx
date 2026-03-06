@@ -6,6 +6,8 @@ import { NoteEditor } from './components/NoteEditor';
 import { NoteList } from './components/NoteList';
 import { NoteDetail } from './components/NoteDetail';
 import { AskAI } from './components/AskAI';
+import { KnowledgeGraph } from './components/KnowledgeGraph';
+import { TagCloud } from './components/TagCloud';
 import './App.css';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6061';
@@ -39,6 +41,7 @@ function AppContent() {
   const [selectedNote, setSelectedNote] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAsk, setShowAsk] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
   const [briefLoading, setBriefLoading] = useState(false);
   const [briefContent, setBriefContent] = useState('');
 
@@ -84,6 +87,20 @@ function AppContent() {
           onChange={(e) => setSearchQuery(e.target.value)}
           className="search-input"
         />
+        <div className="view-toggle">
+          <button
+            onClick={() => setViewMode('list')}
+            className={`toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+          >
+            List
+          </button>
+          <button
+            onClick={() => setViewMode('graph')}
+            className={`toggle-btn ${viewMode === 'graph' ? 'active' : ''}`}
+          >
+            Graph
+          </button>
+        </div>
         <button onClick={() => setShowAsk(!showAsk)} className="btn-secondary">
           {showAsk ? 'Close' : 'Ask AI'}
         </button>
@@ -117,55 +134,73 @@ function AppContent() {
         </div>
       )}
 
-      <div className="main-content">
-        <div className="sidebar">
-          <NoteList
-            onSelect={setSelectedNote}
-            selectedId={selectedNote || undefined}
-            searchQuery={searchQuery}
-          />
-        </div>
-        <div className="detail-pane">
-          {selectedNote ? (
-            <NoteDetail
-              noteId={selectedNote}
-              onNavigate={setSelectedNote}
-              onDeleted={() => setSelectedNote(null)}
-            />
-          ) : (
-            <div className="detail-empty">
-              <div className="empty-icon">&#128218;</div>
-              <h2>{count === 0 ? 'Start Your Research' : 'Select a Note'}</h2>
-              <p>{count === 0
-                ? 'Create your first note to get started'
-                : 'Choose a note from the sidebar to view details'
-              }</p>
-              <div className="feature-grid">
-                <div className="feature-card">
-                  <span className="feature-icon">&#9889;</span>
-                  <strong>Offline-First</strong>
-                  <span>Works without internet via local SQLite</span>
-                </div>
-                <div className="feature-card">
-                  <span className="feature-icon">&#129302;</span>
-                  <strong>AI Analysis</strong>
-                  <span>Auto-summarize, tag, and connect notes</span>
-                </div>
-                <div className="feature-card">
-                  <span className="feature-icon">&#128257;</span>
-                  <strong>Real-Time Sync</strong>
-                  <span>PowerSync keeps devices in sync</span>
-                </div>
-                <div className="feature-card">
-                  <span className="feature-icon">&#128269;</span>
-                  <strong>Ask AI</strong>
-                  <span>Query your research in natural language</span>
-                </div>
-              </div>
+      {viewMode === 'graph' ? (
+        <div className="graph-layout">
+          <div className="graph-container">
+            <KnowledgeGraph onSelectNote={setSelectedNote} selectedId={selectedNote || undefined} />
+          </div>
+          {selectedNote && (
+            <div className="graph-detail-panel">
+              <NoteDetail
+                noteId={selectedNote}
+                onNavigate={setSelectedNote}
+                onDeleted={() => setSelectedNote(null)}
+              />
             </div>
           )}
         </div>
-      </div>
+      ) : (
+        <div className="main-content">
+          <div className="sidebar">
+            <TagCloud onTagClick={(tag) => setSearchQuery(tag)} />
+            <NoteList
+              onSelect={setSelectedNote}
+              selectedId={selectedNote || undefined}
+              searchQuery={searchQuery}
+            />
+          </div>
+          <div className="detail-pane">
+            {selectedNote ? (
+              <NoteDetail
+                noteId={selectedNote}
+                onNavigate={setSelectedNote}
+                onDeleted={() => setSelectedNote(null)}
+              />
+            ) : (
+              <div className="detail-empty">
+                <div className="empty-icon">&#128218;</div>
+                <h2>{count === 0 ? 'Start Your Research' : 'Select a Note'}</h2>
+                <p>{count === 0
+                  ? 'Create your first note to get started'
+                  : 'Choose a note from the sidebar to view details'
+                }</p>
+                <div className="feature-grid">
+                  <div className="feature-card">
+                    <span className="feature-icon">&#9889;</span>
+                    <strong>Offline-First</strong>
+                    <span>Works without internet via local SQLite</span>
+                  </div>
+                  <div className="feature-card">
+                    <span className="feature-icon">&#129302;</span>
+                    <strong>AI Analysis</strong>
+                    <span>Auto-summarize, tag, and connect notes</span>
+                  </div>
+                  <div className="feature-card">
+                    <span className="feature-icon">&#128257;</span>
+                    <strong>Real-Time Sync</strong>
+                    <span>PowerSync keeps devices in sync</span>
+                  </div>
+                  <div className="feature-card">
+                    <span className="feature-icon">&#128269;</span>
+                    <strong>Ask AI</strong>
+                    <span>Query your research in natural language</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
