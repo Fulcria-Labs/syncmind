@@ -158,8 +158,8 @@ Respond with this JSON structure:
         const exists = otherNotes.find(n => n.id === conn.note_id);
         if (exists) {
           await pool.query(
-            `INSERT INTO connections (source_note_id, target_note_id, relationship, confidence)
-             VALUES ($1, $2, $3, $4)
+            `INSERT INTO connections (id, source_note_id, target_note_id, relationship, confidence, created_at)
+             VALUES (uuid_generate_v4(), $1, $2, $3, $4, NOW()::text)
              ON CONFLICT DO NOTHING`,
             [note.id, conn.note_id, conn.relationship, 0.8]
           );
@@ -379,8 +379,8 @@ Respond with this JSON structure:
             for (const conn of result.connections) {
               if (otherNotes.find(n => n.id === conn.note_id)) {
                 await pool.query(
-                  `INSERT INTO connections (source_note_id, target_note_id, relationship, confidence)
-                   VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
+                  `INSERT INTO connections (id, source_note_id, target_note_id, relationship, confidence, created_at)
+                   VALUES (uuid_generate_v4(), $1, $2, $3, $4, NOW()::text) ON CONFLICT DO NOTHING`,
                   [note.id, conn.note_id, conn.relationship, 0.8]
                 );
               }

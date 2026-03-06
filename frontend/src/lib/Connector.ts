@@ -47,7 +47,16 @@ export class SyncMindConnector implements PowerSyncBackendConnector {
       });
 
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        // Handle conflict: if server rejects due to conflict, complete the
+        // transaction anyway so sync can continue (last-write-wins strategy).
+        // PowerSync will pull the server's version on next sync.
+        if (response.status === 409) {
+          console.warn('Sync conflict detected, applying last-write-wins:', errorData);
+          await transaction.complete();
+          return;
+        }
+        throw new Error(`Upload failed: ${response.status} ${errorData.message || ''}`);
       }
 
       await transaction.complete();
