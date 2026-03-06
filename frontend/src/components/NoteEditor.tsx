@@ -11,6 +11,25 @@ export function NoteEditor({ onClose }: { onClose: () => void }) {
   const [content, setContent] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  const handleImportUrl = async () => {
+    if (!sourceUrl.trim()) return;
+    setImporting(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/ai/extract-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: sourceUrl.trim() })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (!title.trim()) setTitle(data.title || '');
+        setContent(prev => prev ? prev + '\n\n' + data.content : data.content);
+      }
+    } catch { /* offline or error - user can still type manually */ }
+    setImporting(false);
+  };
 
   const handleSave = async () => {
     if (!title.trim()) return;
@@ -58,12 +77,23 @@ export function NoteEditor({ onClose }: { onClose: () => void }) {
         onChange={(e) => setContent(e.target.value)}
         rows={10}
       />
-      <input
-        type="url"
-        placeholder="Source URL (optional)"
-        value={sourceUrl}
-        onChange={(e) => setSourceUrl(e.target.value)}
-      />
+      <div className="url-import-row">
+        <input
+          type="url"
+          placeholder="Source URL (optional) — paste a link to auto-import"
+          value={sourceUrl}
+          onChange={(e) => setSourceUrl(e.target.value)}
+        />
+        {sourceUrl.trim() && (
+          <button
+            onClick={handleImportUrl}
+            disabled={importing}
+            className="btn-secondary btn-sm"
+          >
+            {importing ? 'Importing...' : 'Import'}
+          </button>
+        )}
+      </div>
       <div className="editor-actions">
         <button onClick={onClose} className="btn-secondary">Cancel</button>
         <button onClick={handleSave} disabled={saving || !title.trim()} className="btn-primary">

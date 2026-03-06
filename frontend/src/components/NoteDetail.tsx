@@ -1,7 +1,9 @@
-import { useState } from 'react';
-import { useQuery } from '@powersync/react';
+import { useState, useMemo } from 'react';
+import { useQuery, useStatus } from '@powersync/react';
 import { usePowerSync } from '@powersync/react';
+import ReactMarkdown from 'react-markdown';
 import type { NoteRecord, ConnectionRecord } from '../lib/AppSchema';
+import { extractKeywords, localSummary } from '../lib/localKeywords';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6061';
 
@@ -39,6 +41,18 @@ export function NoteDetail({ noteId, onNavigate, onDeleted }: NoteDetailProps) {
   );
 
   const note = notes[0];
+  const status = useStatus();
+
+  // Local keyword extraction - works offline, no AI needed
+  const localKeywords = useMemo(
+    () => note ? extractKeywords((note.title || '') + ' ' + (note.content || '')) : [],
+    [note?.title, note?.content]
+  );
+  const localSummaryText = useMemo(
+    () => note && !note.ai_summary ? localSummary(note.content || '') : '',
+    [note?.content, note?.ai_summary]
+  );
+
   if (!note) return <div className="detail-empty">Note not found</div>;
 
   const handleReprocess = async () => {
@@ -86,6 +100,29 @@ export function NoteDetail({ noteId, onNavigate, onDeleted }: NoteDetailProps) {
     ...inConnections.map(c => ({ ...c, direction: 'in' as const }))
   ];
 
+  const handleExport = () => {
+    const tags = (note.ai_tags || '').split(',').filter(Boolean).map((t: string) => t.trim());
+    const md = [
+      `# ${note.title}`,
+      note.source_url ? `\nSource: ${note.source_url}` : '',
+      `\nCreated: ${note.created_at}`,
+      tags.length ? `\nTags: ${tags.join(', ')}` : '',
+      `\n## Content\n\n${note.content || ''}`,
+      note.ai_summary ? `\n## AI Summary\n\n${note.ai_summary}` : '',
+      allConnections.length ? `\n## Connected Notes\n\n${allConnections.map(c =>
+        `- ${(c as any).target_title || (c as any).source_title}: ${c.relationship}`
+      ).join('\n')}` : ''
+    ].filter(Boolean).join('\n');
+
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(note.title || 'note').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (editing) {
     return (
       <div className="note-detail">
@@ -122,17 +159,23 @@ export function NoteDetail({ noteId, onNavigate, onDeleted }: NoteDetailProps) {
 
       <div className="content-section">
         <h3>Content</h3>
-        <div className="note-content">{note.content}</div>
+        <div className="note-content"><ReactMarkdown>{note.content || ''}</ReactMarkdown></div>
       </div>
 
-      {note.ai_summary && (
+      {note.ai_summary ? (
         <div className="ai-section">
           <h3>AI Summary</h3>
           <p>{note.ai_summary}</p>
         </div>
+      ) : localSummaryText && (
+        <div className="ai-section local-analysis">
+          <h3>Local Summary {!status.connected && '(offline)'}</h3>
+          <p>{localSummaryText}</p>
+          {status.connected && <span className="hint">Full AI analysis pending...</span>}
+        </div>
       )}
 
-      {note.ai_tags && (
+      {note.ai_tags ? (
         <div className="ai-section">
           <h3>AI Tags</h3>
           <div className="tags">
@@ -140,6 +183,16 @@ export function NoteDetail({ noteId, onNavigate, onDeleted }: NoteDetailProps) {
               <span key={tag} className="tag">{tag.trim()}</span>
             ))}
           </div>
+        </div>
+      ) : localKeywords.length > 0 && (
+        <div className="ai-section local-analysis">
+          <h3>Local Keywords {!status.connected && '(offline)'}</h3>
+          <div className="tags">
+            {localKeywords.map(kw => (
+              <span key={kw} className="tag local-tag">{kw}</span>
+            ))}
+          </div>
+          {status.connected && <span className="hint">Full AI tagging pending...</span>}
         </div>
       )}
 
@@ -168,6 +221,9 @@ export function NoteDetail({ noteId, onNavigate, onDeleted }: NoteDetailProps) {
       <div className="detail-actions">
         <button onClick={handleReprocess} className="btn-secondary">
           Re-analyze with AI
+        </button>
+        <button onClick={handleExport} className="btn-secondary" style={{ marginLeft: 8 }}>
+          Export as Markdown
         </button>
       </div>
     </div>
