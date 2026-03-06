@@ -4,6 +4,16 @@ An offline-first AI research assistant that syncs across devices. Built with Pow
 
 **Works offline. Thinks with AI. Syncs everywhere.**
 
+## Screenshots
+
+| Main View | Note Detail | Knowledge Graph |
+|-----------|-------------|-----------------|
+| ![Main](demo-screenshots/01-main-view.png) | ![Detail](demo-screenshots/02-note-detail.png) | ![Graph](demo-screenshots/03-knowledge-graph.png) |
+
+| Sync Activity | Research Agent |
+|---------------|----------------|
+| ![Sync](demo-screenshots/04-sync-activity.png) | ![Agent](demo-screenshots/05-agent-chat.png) |
+
 ## Features
 
 - **Offline-First**: Create and browse research notes without internet. Changes sync automatically when connectivity returns.
