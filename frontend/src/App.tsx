@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { useStatus } from '@powersync/react';
-import { PowerSyncProvider } from './lib/PowerSyncProvider';
+import { useStatus, useQuery } from '@powersync/react';
+import { PowerSyncProvider, connector } from './lib/PowerSyncProvider';
 import { NoteEditor } from './components/NoteEditor';
 import { NoteList } from './components/NoteList';
 import { NoteDetail } from './components/NoteDetail';
 import { AskAI } from './components/AskAI';
 import './App.css';
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6061';
 
 function SyncStatus() {
   const status = useStatus();
@@ -14,6 +16,9 @@ function SyncStatus() {
       <span className="dot" />
       {status.connected ? 'Synced' : 'Offline'}
       {status.dataFlowStatus?.uploading && ' (uploading...)'}
+      {!status.connected && status.dataFlowStatus?.uploading && (
+        <span className="queue-badge">changes queued</span>
+      )}
     </div>
   );
 }
@@ -23,6 +28,28 @@ function AppContent() {
   const [selectedNote, setSelectedNote] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAsk, setShowAsk] = useState(false);
+  const [briefLoading, setBriefLoading] = useState(false);
+  const [briefContent, setBriefContent] = useState('');
+
+  const { data: noteCount } = useQuery<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM notes`);
+  const count = noteCount[0]?.cnt ?? 0;
+
+  const handleBrief = async () => {
+    setBriefLoading(true);
+    setBriefContent('');
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/ai/brief`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner_id: connector.userId })
+      });
+      const data = await res.json();
+      setBriefContent(data.brief || 'Could not generate brief.');
+    } catch {
+      setBriefContent('Failed to generate brief. Are you online?');
+    }
+    setBriefLoading(false);
+  };
 
   return (
     <div className="app">
@@ -30,6 +57,7 @@ function AppContent() {
         <div className="header-left">
           <h1>SyncMind</h1>
           <span className="subtitle">AI Research Assistant</span>
+          {count > 0 && <span className="note-count">{count} note{count !== 1 ? 's' : ''}</span>}
         </div>
         <div className="header-right">
           <SyncStatus />
@@ -47,12 +75,27 @@ function AppContent() {
         <button onClick={() => setShowAsk(!showAsk)} className="btn-secondary">
           {showAsk ? 'Close' : 'Ask AI'}
         </button>
+        {count >= 2 && (
+          <button onClick={handleBrief} disabled={briefLoading} className="btn-secondary">
+            {briefLoading ? 'Generating...' : 'Research Brief'}
+          </button>
+        )}
         <button onClick={() => setShowEditor(true)} className="btn-primary">
           + New Note
         </button>
       </div>
 
       {showAsk && <AskAI />}
+
+      {briefContent && (
+        <div className="brief-panel">
+          <div className="brief-header">
+            <h3>Research Brief</h3>
+            <button onClick={() => setBriefContent('')} className="btn-secondary btn-sm">Close</button>
+          </div>
+          <div className="brief-content">{briefContent}</div>
+        </div>
+      )}
 
       {showEditor && (
         <div className="modal-overlay" onClick={() => setShowEditor(false)}>
@@ -72,7 +115,11 @@ function AppContent() {
         </div>
         <div className="detail-pane">
           {selectedNote ? (
-            <NoteDetail noteId={selectedNote} onNavigate={setSelectedNote} />
+            <NoteDetail
+              noteId={selectedNote}
+              onNavigate={setSelectedNote}
+              onDeleted={() => setSelectedNote(null)}
+            />
           ) : (
             <div className="detail-empty">
               <h2>Select a note</h2>

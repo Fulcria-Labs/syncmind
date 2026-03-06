@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useQuery } from '@powersync/react';
+import { usePowerSync } from '@powersync/react';
 import type { NoteRecord, ConnectionRecord } from '../lib/AppSchema';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6061';
@@ -6,9 +8,17 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6061';
 interface NoteDetailProps {
   noteId: string;
   onNavigate: (id: string) => void;
+  onDeleted?: () => void;
 }
 
-export function NoteDetail({ noteId, onNavigate }: NoteDetailProps) {
+export function NoteDetail({ noteId, onNavigate, onDeleted }: NoteDetailProps) {
+  const powerSync = usePowerSync();
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [editUrl, setEditUrl] = useState('');
+  const [saving, setSaving] = useState(false);
+
   const { data: notes } = useQuery<NoteRecord & { id: string }>(
     `SELECT * FROM notes WHERE id = ?`,
     [noteId]
@@ -35,14 +45,66 @@ export function NoteDetail({ noteId, onNavigate }: NoteDetailProps) {
     await fetch(`${BACKEND_URL}/api/ai/process/${noteId}`, { method: 'POST' });
   };
 
+  const handleDelete = async () => {
+    await powerSync.execute(`DELETE FROM connections WHERE source_note_id = ? OR target_note_id = ?`, [noteId, noteId]);
+    await powerSync.execute(`DELETE FROM notes WHERE id = ?`, [noteId]);
+    onDeleted?.();
+  };
+
+  const startEdit = () => {
+    setEditTitle(note.title || '');
+    setEditContent(note.content || '');
+    setEditUrl(note.source_url || '');
+    setEditing(true);
+  };
+
+  const handleSave = async () => {
+    if (!editTitle.trim()) return;
+    setSaving(true);
+    const now = new Date().toISOString();
+    await powerSync.execute(
+      `UPDATE notes SET title = ?, content = ?, source_url = ?, updated_at = ?, is_processed = 0 WHERE id = ?`,
+      [editTitle.trim(), editContent.trim(), editUrl.trim() || null, now, noteId]
+    );
+    // Re-trigger AI processing
+    fetch(`${BACKEND_URL}/api/ai/process/${noteId}`, { method: 'POST' }).catch(() => {});
+    setSaving(false);
+    setEditing(false);
+  };
+
   const allConnections = [
     ...outConnections.map(c => ({ ...c, direction: 'out' as const })),
     ...inConnections.map(c => ({ ...c, direction: 'in' as const }))
   ];
 
+  if (editing) {
+    return (
+      <div className="note-detail">
+        <h2>Edit Note</h2>
+        <div className="note-editor">
+          <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Title" autoFocus />
+          <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} placeholder="Content..." rows={10} />
+          <input type="url" value={editUrl} onChange={(e) => setEditUrl(e.target.value)} placeholder="Source URL (optional)" />
+          <div className="editor-actions">
+            <button onClick={() => setEditing(false)} className="btn-secondary">Cancel</button>
+            <button onClick={handleSave} disabled={saving || !editTitle.trim()} className="btn-primary">
+              {saving ? 'Saving...' : 'Save & Re-analyze'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="note-detail">
-      <h2>{note.title}</h2>
+      <div className="detail-header">
+        <h2>{note.title}</h2>
+        <div className="detail-header-actions">
+          <button onClick={startEdit} className="btn-secondary btn-sm">Edit</button>
+          <button onClick={handleDelete} className="btn-danger btn-sm">Delete</button>
+        </div>
+      </div>
       {note.source_url && (
         <a href={note.source_url} target="_blank" rel="noopener noreferrer" className="source-link">
           Source
@@ -95,11 +157,9 @@ export function NoteDetail({ noteId, onNavigate }: NoteDetailProps) {
       )}
 
       <div className="detail-actions">
-        {!note.is_processed && (
-          <button onClick={handleReprocess} className="btn-secondary">
-            Re-analyze with AI
-          </button>
-        )}
+        <button onClick={handleReprocess} className="btn-secondary">
+          Re-analyze with AI
+        </button>
       </div>
     </div>
   );
