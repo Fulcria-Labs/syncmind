@@ -16,10 +16,20 @@ function SyncStatus() {
     <div className={`sync-status ${status.connected ? 'online' : 'offline'}`}>
       <span className="dot" />
       {status.connected ? 'Synced' : 'Offline'}
-      {status.dataFlowStatus?.uploading && ' (uploading...)'}
+      {status.dataFlowStatus?.uploading && ' (syncing...)'}
       {!status.connected && status.dataFlowStatus?.uploading && (
         <span className="queue-badge">changes queued</span>
       )}
+    </div>
+  );
+}
+
+function OfflineBanner() {
+  const status = useStatus();
+  if (status.connected) return null;
+  return (
+    <div className="offline-banner">
+      You're offline — local-first mode active. All features work locally. Changes sync when you reconnect.
     </div>
   );
 }
@@ -54,6 +64,7 @@ function AppContent() {
 
   return (
     <div className="app">
+      <OfflineBanner />
       <header>
         <div className="header-left">
           <h1>SyncMind</h1>
@@ -123,12 +134,34 @@ function AppContent() {
             />
           ) : (
             <div className="detail-empty">
-              <h2>Select a note</h2>
-              <p>Choose a note from the sidebar or create a new one</p>
-              <p className="hint">
-                Notes sync across devices and work offline.
-                AI automatically analyzes and connects your research.
-              </p>
+              <div className="empty-icon">&#128218;</div>
+              <h2>{count === 0 ? 'Start Your Research' : 'Select a Note'}</h2>
+              <p>{count === 0
+                ? 'Create your first note to get started'
+                : 'Choose a note from the sidebar to view details'
+              }</p>
+              <div className="feature-grid">
+                <div className="feature-card">
+                  <span className="feature-icon">&#9889;</span>
+                  <strong>Offline-First</strong>
+                  <span>Works without internet via local SQLite</span>
+                </div>
+                <div className="feature-card">
+                  <span className="feature-icon">&#129302;</span>
+                  <strong>AI Analysis</strong>
+                  <span>Auto-summarize, tag, and connect notes</span>
+                </div>
+                <div className="feature-card">
+                  <span className="feature-icon">&#128257;</span>
+                  <strong>Real-Time Sync</strong>
+                  <span>PowerSync keeps devices in sync</span>
+                </div>
+                <div className="feature-card">
+                  <span className="feature-icon">&#128269;</span>
+                  <strong>Ask AI</strong>
+                  <span>Query your research in natural language</span>
+                </div>
+              </div>
             </div>
           )}
         </div>
