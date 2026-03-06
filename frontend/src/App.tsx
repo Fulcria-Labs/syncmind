@@ -48,6 +48,9 @@ function AppContent() {
   const [briefLoading, setBriefLoading] = useState(false);
   const [briefContent, setBriefContent] = useState('');
 
+  const [seedLoading, setSeedLoading] = useState(false);
+  const [seedDone, setSeedDone] = useState(false);
+
   const { data: noteCount } = useQuery<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM notes`);
   const count = noteCount[0]?.cnt ?? 0;
 
@@ -209,9 +212,32 @@ function AppContent() {
                 <div className="empty-icon">&#128218;</div>
                 <h2>{count === 0 ? 'Start Your Research' : 'Select a Note'}</h2>
                 <p>{count === 0
-                  ? 'Create your first note to get started'
+                  ? 'Create your first note or load demo data to explore'
                   : 'Choose a note from the sidebar to view details'
                 }</p>
+                {count === 0 && !seedDone && (
+                  <button
+                    className="btn-primary seed-btn"
+                    disabled={seedLoading}
+                    onClick={async () => {
+                      setSeedLoading(true);
+                      try {
+                        const res = await fetch(`${BACKEND_URL}/api/data/seed`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' }
+                        });
+                        const data = await res.json();
+                        if (data.seeded) setSeedDone(true);
+                      } catch { /* offline - can't seed */ }
+                      setSeedLoading(false);
+                    }}
+                  >
+                    {seedLoading ? 'Loading demo data...' : 'Load Demo Data (6 AI research notes)'}
+                  </button>
+                )}
+                {seedDone && (
+                  <p className="seed-success">Demo data loaded! Notes will appear shortly via PowerSync sync.</p>
+                )}
                 <div className="feature-grid">
                   <div className="feature-card">
                     <span className="feature-icon">&#9889;</span>

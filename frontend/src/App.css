@@ -195,6 +195,9 @@ header {
 
 .hint { font-size: 0.8rem; margin-top: 8px; opacity: 0.7; }
 
+.seed-btn { margin: 16px 0; font-size: 1rem; padding: 12px 24px; }
+.seed-success { color: var(--success); font-size: 0.9rem; margin-top: 12px; }
+
 .note-detail h2 { margin-bottom: 8px; }
 .source-link {
   color: var(--accent);
