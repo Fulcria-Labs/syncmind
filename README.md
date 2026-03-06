@@ -32,7 +32,7 @@ An offline-first AI research assistant that syncs across devices. Built with Pow
 - **Sync Engine**: PowerSync (self-hosted) with Sync Streams
 - **Backend**: Node.js + Express
 - **AI Agent**: [Mastra](https://mastra.ai/) framework with tool-using Research Agent
-- **AI Models**: Claude (Anthropic API) or OpenAI, via Mastra's model routing
+- **AI Models**: Claude (Anthropic API), OpenAI, or **Ollama** (fully local, no cloud needed)
 - **Database**: PostgreSQL (primary) + MongoDB (PowerSync storage)
 - **Local Storage**: SQLite (via PowerSync WASM in browser)
 
@@ -43,8 +43,10 @@ An offline-first AI research assistant that syncs across devices. Built with Pow
 git clone https://github.com/Fulcria-Labs/syncmind.git
 cd syncmind
 
-# 2. Set your Anthropic API key
-export ANTHROPIC_API_KEY=your_key_here
+# 2. Set your AI provider (pick one, or skip for local Ollama)
+export ANTHROPIC_API_KEY=your_key_here   # Cloud: Claude AI
+# OR: export OPENAI_API_KEY=your_key     # Cloud: OpenAI
+# OR: just run Ollama locally (no key needed - fully offline AI!)
 
 # 3. Start all services (PostgreSQL, MongoDB, PowerSync, Backend)
 docker compose up -d
@@ -82,8 +84,23 @@ PowerSync Service (Sync Streams)
 PostgreSQL (source of truth)
     ^
     |
-Express Backend ----> Mastra Agent ----> AI API (Claude/OpenAI)
+Express Backend ----> Mastra Agent ----> AI (Claude/OpenAI/Ollama)
 ```
+
+### Fully Local Mode (No Cloud APIs)
+
+SyncMind can run entirely locally with [Ollama](https://ollama.ai):
+
+```bash
+# Install and start Ollama
+ollama pull qwen2.5-coder:7b-instruct-q4_K_M
+
+# Start SyncMind without any API keys - Ollama auto-detected
+docker compose up -d
+cd frontend && npm install && npm run dev
+```
+
+The header shows "LOCAL AI" when using Ollama, making the local-first experience complete: local data (SQLite), local sync (PowerSync), and local AI (Ollama).
 
 ## How PowerSync Powers SyncMind
 

@@ -19,7 +19,7 @@ PowerSync is not just a nice-to-have - it's the architectural foundation that ma
 
 3. **The AI feedback loop**: User creates a note locally -> PowerSync syncs to PostgreSQL -> backend detects unprocessed notes -> Claude AI generates summary, tags, connections -> results written to PostgreSQL -> PowerSync syncs AI insights back to browser -> UI updates reactively via `useQuery`. The user never waits - they keep working while AI processes in the background.
 
-4. **Offline-first AI degradation**: When offline, SyncMind falls back to local keyword extraction and extractive summarization (no API needed). When connectivity returns, full AI analysis replaces local approximations seamlessly via sync.
+4. **Offline-first AI degradation**: When offline, SyncMind falls back to local keyword extraction and extractive summarization (no API needed). When connectivity returns, full AI analysis replaces local approximations seamlessly via sync. With Ollama, even the full AI analysis runs locally - no cloud API needed at all.
 
 5. **Reactive queries everywhere**: Every component uses PowerSync's `useQuery` hooks. The knowledge graph, tag cloud, note list, and connection panels all update automatically when synced data arrives - no manual refresh needed.
 
@@ -63,7 +63,7 @@ Browser (SQLite via WASM)           PowerSync Service
 | Frontend | React 18 + TypeScript + Vite |
 | Local DB | SQLite (PowerSync WASM) |
 | AI Agent | Mastra framework |
-| AI Models | Claude (Anthropic) |
+| AI Models | Claude / OpenAI / Ollama (local) |
 | Backend | Node.js + Express |
 | Database | PostgreSQL + MongoDB (PowerSync storage) |
 | Deployment | Docker Compose (full stack) |
@@ -72,7 +72,7 @@ Browser (SQLite via WASM)           PowerSync Service
 
 1. **AI + Sync feedback loop**: Most AI note apps are cloud-only. SyncMind is the first to use PowerSync's sync streams as the transport layer for an AI analysis pipeline, where insights flow back to the user's local database automatically.
 
-2. **Graceful AI degradation**: Offline doesn't mean dumb. Local NLP (keyword extraction, extractive summarization) provides immediate value, then gets upgraded by cloud AI when sync resumes.
+2. **Graceful AI degradation**: Offline doesn't mean dumb. Local NLP (keyword extraction, extractive summarization) provides immediate value, then gets upgraded by cloud AI when sync resumes. With Ollama support, even full AI analysis runs entirely local - zero cloud dependency.
 
 3. **Knowledge graph from AI connections**: Rather than manual linking (like Obsidian), SyncMind's AI automatically discovers semantic relationships and builds a navigable graph.
 

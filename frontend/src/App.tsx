@@ -50,6 +50,11 @@ function AppContent() {
 
   const [seedLoading, setSeedLoading] = useState(false);
   const [seedDone, setSeedDone] = useState(false);
+  const [aiStatus, setAiStatus] = useState<{ provider: string; local: boolean; model: string } | null>(null);
+
+  useEffect(() => {
+    fetch(`${BACKEND_URL}/api/ai/status`).then(r => r.json()).then(setAiStatus).catch(() => {});
+  }, []);
 
   const { data: noteCount } = useQuery<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM notes`);
   const count = noteCount[0]?.cnt ?? 0;
@@ -115,6 +120,11 @@ function AppContent() {
           {count > 0 && <span className="note-count">{count} note{count !== 1 ? 's' : ''}</span>}
         </div>
         <div className="header-right">
+          {aiStatus && (
+            <div className={`ai-provider-badge ${aiStatus.local ? 'local' : 'cloud'}`} title={`Model: ${aiStatus.model}`}>
+              {aiStatus.local ? 'Local AI' : `${aiStatus.provider}`}
+            </div>
+          )}
           <SyncActivityFeed />
           <SyncStatus />
         </div>

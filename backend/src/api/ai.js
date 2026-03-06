@@ -17,8 +17,7 @@ function getResearchAgent() {
     ? 'anthropic/claude-haiku-4-5-20251001'
     : process.env.OPENAI_API_KEY
       ? 'openai/gpt-4.1-mini'
-      : null;
-  if (!modelId) return null;
+      : `ollama/${process.env.OLLAMA_MODEL || 'qwen2.5-coder:7b-instruct-q4_K_M'}`;
   researchAgent = createResearchAgent(pool, modelId);
   return researchAgent;
 }
@@ -52,15 +51,44 @@ function getProvider() {
         return resp.choices[0].message.content;
       }
     };
+  } else {
+    // Ollama local model - fully offline AI via OpenAI-compatible API
+    const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
+    const ollamaModel = process.env.OLLAMA_MODEL || 'qwen2.5-coder:7b-instruct-q4_K_M';
+    const client = new OpenAI({ baseURL: `${ollamaUrl}/v1`, apiKey: 'ollama' });
+    aiProvider = {
+      name: 'ollama',
+      chat: async (prompt, maxTokens = 1024) => {
+        const resp = await client.chat.completions.create({
+          model: ollamaModel,
+          max_tokens: maxTokens,
+          messages: [{ role: 'user', content: prompt }]
+        });
+        return resp.choices[0].message.content;
+      }
+    };
+    console.log(`[ai] Using local Ollama model: ${ollamaModel} at ${ollamaUrl}`);
   }
   return aiProvider;
 }
+
+// AI provider status endpoint
+router.get('/status', (req, res) => {
+  const provider = getProvider();
+  res.json({
+    provider: provider?.name || 'none',
+    local: provider?.name === 'ollama',
+    model: provider?.name === 'ollama'
+      ? (process.env.OLLAMA_MODEL || 'qwen2.5-coder:7b-instruct-q4_K_M')
+      : provider?.name === 'anthropic' ? 'claude-haiku-4-5' : 'gpt-4.1-mini'
+  });
+});
 
 // Process a note with AI: summarize, tag, find connections
 router.post('/process/:noteId', async (req, res) => {
   const provider = getProvider();
   if (!provider) {
-    return res.status(503).json({ message: 'AI not configured (set ANTHROPIC_API_KEY or OPENAI_API_KEY)' });
+    return res.status(503).json({ message: 'AI not configured (set ANTHROPIC_API_KEY, OPENAI_API_KEY, or run Ollama locally)' });
   }
 
   try {

@@ -1064,3 +1064,23 @@ kbd {
   color: var(--text-secondary);
   max-width: 400px;
 }
+
+/* AI Provider Badge */
+.ai-provider-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ai-provider-badge.local {
+  background: #059669;
+  color: white;
+}
+
+.ai-provider-badge.cloud {
+  background: #6366f1;
+  color: white;
+}

@@ -80,8 +80,12 @@ services:
       PORT: "6061"
       DATABASE_URI: postgres://syncmind:syncmind_dev_2026@syncmind-postgres:5432/syncmind
       POWERSYNC_URL: http://syncmind-powersync:8089
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5-coder:7b-instruct-q4_K_M}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   pg_data:
