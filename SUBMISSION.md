@@ -91,7 +91,7 @@ cd frontend && npm install && npm run dev
 
 ## Video Demo
 
-[Link to demo video - TBD]
+Demo video included in repository: `syncmind-demo-hd.mp4`
 
 ## GitHub
 
