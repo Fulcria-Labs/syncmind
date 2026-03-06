@@ -25,8 +25,18 @@ export function NoteEditor({ onClose }: { onClose: () => void }) {
       [id, title.trim(), content.trim(), sourceUrl.trim() || null, now, now, connector.userId]
     );
 
-    // Trigger AI processing in background
-    fetch(`${BACKEND_URL}/api/ai/process/${id}`, { method: 'POST' }).catch(() => {});
+    // Trigger AI processing in background (retry with delay to allow sync to PostgreSQL)
+    const triggerAI = async (noteId: string, retries = 5) => {
+      for (let i = 0; i < retries; i++) {
+        await new Promise(r => setTimeout(r, 2000 * (i + 1)));
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/ai/process/${noteId}`, { method: 'POST' });
+          if (res.ok) return;
+          if (res.status !== 404) return; // only retry on 404 (sync not yet complete)
+        } catch { /* network error, retry */ }
+      }
+    };
+    triggerAI(id);
 
     setSaving(false);
     onClose();

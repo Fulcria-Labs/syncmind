@@ -1,25 +1,51 @@
 import express from 'express';
 import PG from 'pg';
 import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
 const { Pool } = PG;
 const router = express.Router();
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URI });
 
-let anthropic = null;
-function getClient() {
-  if (!anthropic && process.env.ANTHROPIC_API_KEY) {
-    anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+let aiProvider = null;
+function getProvider() {
+  if (aiProvider) return aiProvider;
+  if (process.env.ANTHROPIC_API_KEY) {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    aiProvider = {
+      name: 'anthropic',
+      chat: async (prompt, maxTokens = 1024) => {
+        const msg = await client.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: maxTokens,
+          messages: [{ role: 'user', content: prompt }]
+        });
+        return msg.content[0].text;
+      }
+    };
+  } else if (process.env.OPENAI_API_KEY) {
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    aiProvider = {
+      name: 'openai',
+      chat: async (prompt, maxTokens = 1024) => {
+        const resp = await client.chat.completions.create({
+          model: 'gpt-4.1-mini',
+          max_tokens: maxTokens,
+          messages: [{ role: 'user', content: prompt }]
+        });
+        return resp.choices[0].message.content;
+      }
+    };
   }
-  return anthropic;
+  return aiProvider;
 }
 
 // Process a note with AI: summarize, tag, find connections
 router.post('/process/:noteId', async (req, res) => {
-  const client = getClient();
-  if (!client) {
-    return res.status(503).json({ message: 'AI not configured' });
+  const provider = getProvider();
+  if (!provider) {
+    return res.status(503).json({ message: 'AI not configured (set ANTHROPIC_API_KEY or OPENAI_API_KEY)' });
   }
 
   try {
@@ -38,12 +64,7 @@ router.post('/process/:noteId', async (req, res) => {
       .map(n => `[${n.id}] "${n.title}": ${(n.content || '').slice(0, 200)}`)
       .join('\n');
 
-    const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
-      messages: [{
-        role: 'user',
-        content: `Analyze this research note and respond with ONLY valid JSON (no markdown, no code blocks):
+    const text = await provider.chat(`Analyze this research note and respond with ONLY valid JSON (no markdown, no code blocks):
 
 TITLE: ${note.title}
 CONTENT: ${note.content || ''}
@@ -58,11 +79,7 @@ Respond with this JSON structure:
   "tags": ["tag1", "tag2", "tag3"],
   "connections": [{"note_id": "uuid", "relationship": "brief description"}],
   "key_insights": ["insight1", "insight2"]
-}`
-      }]
-    });
-
-    const text = message.content[0].text;
+}`);
     let result;
     try {
       result = JSON.parse(text);
@@ -125,8 +142,8 @@ Respond with this JSON structure:
 
 // Ask a question across all notes
 router.post('/ask', async (req, res) => {
-  const client = getClient();
-  if (!client) return res.status(503).json({ message: 'AI not configured' });
+  const provider = getProvider();
+  if (!provider) return res.status(503).json({ message: 'AI not configured' });
 
   const { question, owner_id = 'default' } = req.body;
   if (!question) return res.status(400).json({ message: 'Question required' });
@@ -138,26 +155,19 @@ router.post('/ask', async (req, res) => {
     );
 
     const context = notes
-      .map(n => `## ${n.title}\n${n.ai_summary || n.content?.slice(0, 300) || ''}\nTags: ${(n.ai_tags || []).join(', ')}`)
+      .map(n => `## ${n.title}\n${n.ai_summary || n.content?.slice(0, 300) || ''}\nTags: ${n.ai_tags || ''}`)
       .join('\n\n');
 
-    const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
-      messages: [{
-        role: 'user',
-        content: `Based on these research notes, answer the question.
+    const answer = await provider.chat(`Based on these research notes, answer the question.
 
 RESEARCH NOTES:
 ${context}
 
 QUESTION: ${question}
 
-Answer concisely, citing specific notes when relevant.`
-      }]
-    });
+Answer concisely, citing specific notes when relevant.`);
 
-    res.json({ answer: message.content[0].text });
+    res.json({ answer });
   } catch (e) {
     console.error('AI ask failed:', e.message);
     res.status(500).json({ message: e.message });
@@ -166,8 +176,8 @@ Answer concisely, citing specific notes when relevant.`
 
 // Generate a research brief from all notes
 router.post('/brief', async (req, res) => {
-  const client = getClient();
-  if (!client) return res.status(503).json({ message: 'AI not configured' });
+  const provider = getProvider();
+  if (!provider) return res.status(503).json({ message: 'AI not configured' });
 
   const { owner_id = 'default', topic } = req.body;
 
@@ -181,21 +191,14 @@ router.post('/brief', async (req, res) => {
       .map(n => `- ${n.title}: ${n.ai_summary || n.content?.slice(0, 200) || ''}`)
       .join('\n');
 
-    const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2048,
-      messages: [{
-        role: 'user',
-        content: `Create a research brief from these notes${topic ? ` focused on: ${topic}` : ''}.
+    const brief = await provider.chat(`Create a research brief from these notes${topic ? ` focused on: ${topic}` : ''}.
 
 NOTES:
 ${context}
 
-Write a structured brief with: Executive Summary, Key Themes, Notable Findings, Knowledge Gaps, and Suggested Next Steps.`
-      }]
-    });
+Write a structured brief with: Executive Summary, Key Themes, Notable Findings, Knowledge Gaps, and Suggested Next Steps.`, 2048);
 
-    res.json({ brief: message.content[0].text });
+    res.json({ brief });
   } catch (e) {
     console.error('AI brief failed:', e.message);
     res.status(500).json({ message: e.message });

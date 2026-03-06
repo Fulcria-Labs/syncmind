@@ -80,6 +80,7 @@ services:
       DATABASE_URI: postgres://syncmind:syncmind_dev_2026@syncmind-postgres:5432/syncmind
       POWERSYNC_URL: http://syncmind-powersync:8089
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
 
 volumes:
   pg_data:

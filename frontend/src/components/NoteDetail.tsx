@@ -66,8 +66,17 @@ export function NoteDetail({ noteId, onNavigate, onDeleted }: NoteDetailProps) {
       `UPDATE notes SET title = ?, content = ?, source_url = ?, updated_at = ?, is_processed = 0 WHERE id = ?`,
       [editTitle.trim(), editContent.trim(), editUrl.trim() || null, now, noteId]
     );
-    // Re-trigger AI processing
-    fetch(`${BACKEND_URL}/api/ai/process/${noteId}`, { method: 'POST' }).catch(() => {});
+    // Re-trigger AI processing (with sync delay retry)
+    const retryAI = async () => {
+      for (let i = 0; i < 5; i++) {
+        await new Promise(r => setTimeout(r, 2000 * (i + 1)));
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/ai/process/${noteId}`, { method: 'POST' });
+          if (res.ok || res.status !== 404) return;
+        } catch { /* retry */ }
+      }
+    };
+    retryAI();
     setSaving(false);
     setEditing(false);
   };
