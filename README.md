@@ -10,6 +10,7 @@ An offline-first AI research assistant that syncs across devices. Built with Pow
 - **AI-Powered Analysis**: Notes are automatically summarized, tagged, and connected by Claude AI (Haiku for fast processing).
 - **Knowledge Graph**: Interactive force-directed visualization of note connections. Drag nodes, click to navigate, see relationships on hover.
 - **Tag Cloud**: Visual topic frequency display in the sidebar. Click any tag to filter notes instantly.
+- **Research Agent Chat**: Conversational AI agent (Mastra-powered) that uses tools to search notes, find connections, and synthesize research.
 - **Ask Your Research**: Query across all your notes using natural language.
 - **Research Brief**: One-click AI-generated summary across all your notes.
 - **Cross-Device Sync**: PowerSync Sync Streams keep data in sync across all connected devices.
@@ -20,7 +21,8 @@ An offline-first AI research assistant that syncs across devices. Built with Pow
 - **Frontend**: React 18 + TypeScript + Vite
 - **Sync Engine**: PowerSync (self-hosted) with Sync Streams
 - **Backend**: Node.js + Express
-- **AI**: Claude (Anthropic API) via Haiku for fast processing
+- **AI Agent**: [Mastra](https://mastra.ai/) framework with tool-using Research Agent
+- **AI Models**: Claude (Anthropic API) or OpenAI, via Mastra's model routing
 - **Database**: PostgreSQL (primary) + MongoDB (PowerSync storage)
 - **Local Storage**: SQLite (via PowerSync WASM in browser)
 
@@ -61,7 +63,7 @@ PowerSync Service (Sync Streams)
 PostgreSQL (source of truth)
     ^
     |
-Express Backend ----> Claude AI API
+Express Backend ----> Mastra Agent ----> AI API (Claude/OpenAI)
 ```
 
 ## How PowerSync Powers SyncMind
@@ -103,10 +105,11 @@ syncmind/
       NoteList.tsx        # Searchable note list
       NoteDetail.tsx      # Full note view with AI insights
       AskAI.tsx           # Natural language Q&A
+      AgentChat.tsx       # Mastra-powered research agent chat
     src/lib/
       AppSchema.ts        # PowerSync table definitions
       Connector.ts        # PowerSync backend connector
-  backend/               # Express API + AI processing
+  backend/               # Express API + Mastra agent + AI processing
   powersync/             # PowerSync service config + sync rules
   db/                    # PostgreSQL schema
   docker-compose.yml     # Full stack orchestration

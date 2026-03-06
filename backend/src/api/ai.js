@@ -2,11 +2,26 @@ import express from 'express';
 import PG from 'pg';
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
+import { createResearchAgent } from './mastra-agent.js';
 
 const { Pool } = PG;
 const router = express.Router();
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URI });
+
+// Mastra Research Agent - initialized lazily
+let researchAgent = null;
+function getResearchAgent() {
+  if (researchAgent) return researchAgent;
+  const modelId = process.env.ANTHROPIC_API_KEY
+    ? 'anthropic/claude-haiku-4-5-20251001'
+    : process.env.OPENAI_API_KEY
+      ? 'openai/gpt-4.1-mini'
+      : null;
+  if (!modelId) return null;
+  researchAgent = createResearchAgent(pool, modelId);
+  return researchAgent;
+}
 
 let aiProvider = null;
 function getProvider() {
@@ -366,5 +381,67 @@ Respond with this JSON structure:
 }
 
 setTimeout(startBackgroundProcessor, 5000);
+
+// Mastra Agent chat endpoint - conversational research assistant
+router.post('/agent/chat', async (req, res) => {
+  const agent = getResearchAgent();
+  if (!agent) return res.status(503).json({ message: 'AI not configured' });
+
+  const { message, history = [], owner_id = 'default' } = req.body;
+  if (!message) return res.status(400).json({ message: 'Message required' });
+
+  try {
+    const messages = [
+      ...history.map(h => ({ role: h.role, content: h.content })),
+      { role: 'user', content: `[Context: owner_id=${owner_id}]\n\n${message}` }
+    ];
+
+    const response = await agent.generate(messages);
+    res.json({
+      reply: response.text,
+      toolCalls: response.toolCalls || [],
+      usage: response.usage || null
+    });
+  } catch (e) {
+    console.error('Agent chat failed:', e.message);
+    res.status(500).json({ message: e.message });
+  }
+});
+
+// Mastra Agent streaming chat
+router.post('/agent/stream', async (req, res) => {
+  const agent = getResearchAgent();
+  if (!agent) return res.status(503).json({ message: 'AI not configured' });
+
+  const { message, history = [], owner_id = 'default' } = req.body;
+  if (!message) return res.status(400).json({ message: 'Message required' });
+
+  try {
+    const messages = [
+      ...history.map(h => ({ role: h.role, content: h.content })),
+      { role: 'user', content: `[Context: owner_id=${owner_id}]\n\n${message}` }
+    ];
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const stream = await agent.stream(messages);
+
+    for await (const chunk of stream.textStream) {
+      res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
+    }
+
+    res.write('data: [DONE]\n\n');
+    res.end();
+  } catch (e) {
+    console.error('Agent stream failed:', e.message);
+    if (!res.headersSent) {
+      res.status(500).json({ message: e.message });
+    } else {
+      res.end();
+    }
+  }
+});
 
 export { router as aiRouter };
