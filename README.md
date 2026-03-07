@@ -8,11 +8,11 @@ An offline-first AI research assistant that syncs across devices. Built with Pow
 
 | Main View | Note Detail | Knowledge Graph |
 |-----------|-------------|-----------------|
-| ![Main](demo-screenshots/01-main-view.png) | ![Detail](demo-screenshots/02-note-detail.png) | ![Graph](demo-screenshots/03-knowledge-graph.png) |
+| ![Main](demo-screenshots/fresh-01-main.png) | ![Detail](demo-screenshots/fresh-02-note-detail.png) | ![Graph](demo-screenshots/fresh-03-knowledge-graph.png) |
 
-| Sync Activity | Research Agent |
-|---------------|----------------|
-| ![Sync](demo-screenshots/04-sync-activity.png) | ![Agent](demo-screenshots/05-agent-chat.png) |
+| Research Agent | Ask AI | New Note |
+|----------------|--------|----------|
+| ![Agent](demo-screenshots/fresh-06-agent-chat.png) | ![Ask](demo-screenshots/fresh-05-ask-ai.png) | ![New](demo-screenshots/fresh-07-new-note.png) |
 
 ## Features
 
