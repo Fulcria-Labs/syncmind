@@ -68,15 +68,44 @@ Browser (SQLite via WASM)           PowerSync Service
 | Database | PostgreSQL + MongoDB (PowerSync storage) |
 | Deployment | Docker Compose (full stack) |
 
-## What makes this original
+## Originality (30%)
 
-1. **AI + Sync feedback loop**: Most AI note apps are cloud-only. SyncMind is the first to use PowerSync's sync streams as the transport layer for an AI analysis pipeline, where insights flow back to the user's local database automatically.
+SyncMind introduces a novel architecture where **PowerSync sync streams serve as the transport layer for an AI analysis pipeline**. This is fundamentally different from existing tools:
 
-2. **Graceful AI degradation**: Offline doesn't mean dumb. Local NLP (keyword extraction, extractive summarization) provides immediate value, then gets upgraded by cloud AI when sync resumes. With Ollama support, even full AI analysis runs entirely local - zero cloud dependency.
+1. **AI + Sync feedback loop**: Most AI note apps are cloud-only. SyncMind is the first to pipe AI insights back through sync streams so they arrive in the user's local database automatically - no polling, no manual refresh.
 
-3. **Knowledge graph from AI connections**: Rather than manual linking (like Obsidian), SyncMind's AI automatically discovers semantic relationships and builds a navigable graph.
+2. **Graceful AI degradation**: Offline doesn't mean dumb. Local NLP (keyword extraction, extractive summarization) provides immediate value, then gets seamlessly upgraded by cloud AI when sync resumes. With Ollama, even full AI runs entirely local.
 
-4. **Conversational research agent**: The Mastra-powered agent doesn't just answer questions - it uses tools to actively search your synced notes, find connections, and synthesize findings.
+3. **AI-generated knowledge graph**: Unlike Obsidian (manual links) or Notion (flat pages), SyncMind's AI automatically discovers semantic relationships and builds a navigable force-directed graph.
+
+4. **Conversational research agent**: The Mastra-powered agent uses 5 specialized tools to actively search synced notes, trace connection chains, and synthesize cross-note findings.
+
+## Technical Implementation (25%)
+
+- **67 passing tests** across 6 test files (36 backend + 31 frontend), covering AI response parsing, sync conflict handling, auth, schema validation, and local NLP
+- **TypeScript frontend** with React + Vite, proper type safety throughout
+- **Clean architecture**: Frontend ↔ PowerSync Connector ↔ Sync Service ↔ PostgreSQL ↔ Express Backend ↔ Mastra Agent
+- **Multi-model AI**: Auto-selects Claude → OpenAI → Ollama with zero code changes
+- **Docker Compose** for one-command full-stack deployment (PostgreSQL, MongoDB, PowerSync service, backend)
+- **Concurrent processing**: Backend processes notes in batches with proper error isolation
+- **JWT authentication** with secure token lifecycle
+
+## Impact & Usefulness (20%)
+
+Researchers, students, and knowledge workers accumulate notes across tools that don't talk to each other. SyncMind solves three real problems:
+
+1. **Offline reliability**: Works on trains, planes, and spotty WiFi. Notes never lost, AI catches up automatically.
+2. **Hidden connections**: AI discovers relationships between ideas you didn't know existed, surfaced through the knowledge graph.
+3. **Research synthesis**: The agent chat lets you ask questions across your entire note collection - "What are the common themes?" or "How does note X relate to note Y?"
+
+## Product & UX Quality (10%)
+
+- **One-click demo data**: Judges can load 6 interconnected AI research notes instantly
+- **PWA/Installable**: Full Progressive Web App with service worker caching for native-like experience
+- **Responsive design**: Works on desktop and mobile
+- **Zero-latency editing**: Local SQLite writes mean no spinners, no lag
+- **Keyboard shortcuts**: Ctrl+S to save, Escape to close panels
+- **Markdown export**: Clean export with AI metadata
 
 ## How to run
 

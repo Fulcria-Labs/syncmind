@@ -17,6 +17,13 @@ const localStorageMock = (() => {
 })();
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock });
 
+// Mock window.dispatchEvent for conflict handling
+if (typeof window === 'undefined') {
+  (globalThis as any).window = { dispatchEvent: vi.fn() };
+} else {
+  vi.spyOn(window, 'dispatchEvent').mockImplementation(() => true);
+}
+
 // Mock import.meta.env
 vi.stubGlobal('import', { meta: { env: {} } });
 
