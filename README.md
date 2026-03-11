@@ -43,10 +43,10 @@ An offline-first AI research assistant that syncs across devices. Built with Pow
 git clone https://github.com/Fulcria-Labs/syncmind.git
 cd syncmind
 
-# 2. Set your AI provider (pick one, or skip for local Ollama)
-export ANTHROPIC_API_KEY=your_key_here   # Cloud: Claude AI
-# OR: export OPENAI_API_KEY=your_key     # Cloud: OpenAI
-# OR: just run Ollama locally (no key needed - fully offline AI!)
+# 2. Configure environment (see .env.example)
+cp .env.example .env
+# Set ANTHROPIC_API_KEY or OPENAI_API_KEY for cloud AI,
+# or leave blank to use Ollama locally (fully offline AI!)
 
 # 3. Start all services (PostgreSQL, MongoDB, PowerSync, Backend)
 docker compose up -d
@@ -128,6 +128,20 @@ PowerSync is central to the architecture:
 7. UI updates reactively via `useQuery` hooks - no refresh needed
 
 AI processing happens server-side without blocking the user. Results appear automatically across all connected devices.
+
+## Research Agent (Mastra Framework)
+
+The conversational Research Agent uses [Mastra](https://mastra.ai/) with 5 specialized tools for deep research exploration:
+
+- **search-notes**: Find notes by keyword or topic
+- **get-note-detail**: Retrieve full note content + connections
+- **list-all-notes**: Overview of entire research collection
+- **get-tags**: Analyze research themes via tag frequency
+- **get-connection-graph**: Map relationships between notes
+
+The agent autonomously chains tools together for complex queries — e.g., "How are my RAG notes connected?" triggers search, detail retrieval, and graph analysis in sequence.
+
+Works with Claude, OpenAI, or fully local Ollama. See [MASTRA_USAGE.md](MASTRA_USAGE.md) for full agent documentation.
 
 ## Testing
 
