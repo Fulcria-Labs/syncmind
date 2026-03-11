@@ -129,6 +129,19 @@ PowerSync is central to the architecture:
 
 AI processing happens server-side without blocking the user. Results appear automatically across all connected devices.
 
+## Testing
+
+```bash
+# Run all 67 tests (backend + frontend)
+npx vitest run
+
+# Backend tests only (36 tests: AI processing, data layer, auth)
+cd backend && npm test
+
+# Frontend tests only (31 tests: keyword extraction, schema, sync connector)
+cd frontend && npm test
+```
+
 ## Project Structure
 
 ```
