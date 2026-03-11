@@ -16,8 +16,9 @@ SyncMind is a research note-taking app where AI analysis happens seamlessly in t
 https://github.com/Fulcria-Labs/syncmind
 
 ## Demo Video
-syncmind-demo-hd.mp4 (included in repo root, 2.1MB)
-- Note: may need to upload to YouTube/Loom if form requires URL
+- GitHub Release: https://github.com/Fulcria-Labs/syncmind/releases/download/v1.0.0/syncmind-demo-hd.mp4
+- Backup: https://files.catbox.moe/vbf0w1.mp4
+- Also included in repo root (syncmind-demo-hd.mp4, 2.1MB)
 
 ## Selected Prize Categories
 - **Core Prize** ($3K/$1K/$500): Main track
