@@ -4,10 +4,24 @@ import { connector } from '../lib/PowerSyncProvider';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6061';
 
+interface ToolCall {
+  toolName: string;
+  args?: Record<string, unknown>;
+}
+
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  toolsUsed?: ToolCall[];
 }
+
+const TOOL_LABELS: Record<string, string> = {
+  'searchNotesTool': 'Searched notes',
+  'getNoteDetailTool': 'Read note details',
+  'listAllNotesTool': 'Listed all notes',
+  'getTagsTool': 'Analyzed tags',
+  'getConnectionGraphTool': 'Explored connections',
+};
 
 export function AgentChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -35,7 +49,7 @@ export function AgentChat() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: input,
-          history: messages,
+          history: messages.map(m => ({ role: m.role, content: m.content })),
           owner_id: connector.userId
         })
       });
@@ -45,7 +59,15 @@ export function AgentChat() {
         setMessages([...updated, { role: 'assistant', content: `Error: ${err.message}` }]);
       } else {
         const data = await res.json();
-        setMessages([...updated, { role: 'assistant', content: data.reply }]);
+        const toolsUsed: ToolCall[] = (data.toolCalls || []).map((tc: any) => ({
+          toolName: tc.toolName || tc.name || 'unknown',
+          args: tc.args
+        }));
+        setMessages([...updated, {
+          role: 'assistant',
+          content: data.reply,
+          toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined
+        }]);
       }
     } catch {
       setMessages([...updated, { role: 'assistant', content: 'Failed to reach the agent. Are you online?' }]);
@@ -86,6 +108,15 @@ export function AgentChat() {
         )}
         {messages.map((msg, i) => (
           <div key={i} className={`agent-msg agent-msg-${msg.role}`}>
+            {msg.role === 'assistant' && msg.toolsUsed && msg.toolsUsed.length > 0 && (
+              <div className="agent-tools-used">
+                {msg.toolsUsed.map((tc, j) => (
+                  <span key={j} className="tool-badge">
+                    {TOOL_LABELS[tc.toolName] || tc.toolName}
+                  </span>
+                ))}
+              </div>
+            )}
             {msg.role === 'assistant' ? (
               <ReactMarkdown>{msg.content}</ReactMarkdown>
             ) : (

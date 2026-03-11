@@ -53,6 +53,9 @@ export class SyncMindConnector implements PowerSyncBackendConnector {
         // PowerSync will pull the server's version on next sync.
         if (response.status === 409) {
           console.warn('Sync conflict detected, applying last-write-wins:', errorData);
+          window.dispatchEvent(new CustomEvent('syncmind:conflict', {
+            detail: { message: 'Conflict resolved: server version kept (last-write-wins)' }
+          }));
           await transaction.complete();
           return;
         }

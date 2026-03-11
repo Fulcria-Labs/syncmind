@@ -4,7 +4,7 @@ import { powerSync } from '../lib/PowerSyncProvider';
 
 interface SyncEvent {
   id: number;
-  type: 'upload' | 'download' | 'connect' | 'disconnect';
+  type: 'upload' | 'download' | 'connect' | 'disconnect' | 'conflict';
   message: string;
   timestamp: Date;
 }
@@ -46,6 +46,16 @@ export function SyncActivityFeed() {
     }
   }, [status.dataFlowStatus?.downloading, addEvent]);
 
+  // Listen for sync conflict events from Connector
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      addEvent('conflict', detail?.message || 'Sync conflict resolved');
+    };
+    window.addEventListener('syncmind:conflict', handler);
+    return () => window.removeEventListener('syncmind:conflict', handler);
+  }, [addEvent]);
+
   // Watch for local changes via PowerSync onChange
   useEffect(() => {
     const abortController = new AbortController();
@@ -77,6 +87,7 @@ export function SyncActivityFeed() {
       case 'download': return '\u2B07';
       case 'connect': return '\u2705';
       case 'disconnect': return '\u26A0';
+      case 'conflict': return '\u26A1';
     }
   };
 
@@ -86,6 +97,7 @@ export function SyncActivityFeed() {
       case 'download': return '#10b981';
       case 'connect': return '#10b981';
       case 'disconnect': return '#f59e0b';
+      case 'conflict': return '#ef4444';
     }
   };
 

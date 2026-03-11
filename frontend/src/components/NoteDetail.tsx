@@ -197,9 +197,9 @@ export function NoteDetail({ noteId, onNavigate, onDeleted }: NoteDetailProps) {
         </div>
       )}
 
-      {allConnections.length > 0 && (
-        <div className="ai-section">
-          <h3>Connected Notes</h3>
+      <div className="ai-section">
+        <h3>Connected Notes</h3>
+        {allConnections.length > 0 ? (
           <div className="connections">
             {allConnections.map((conn) => (
               <div
@@ -213,11 +213,18 @@ export function NoteDetail({ noteId, onNavigate, onDeleted }: NoteDetailProps) {
                   {(conn as any).target_title || (conn as any).source_title || 'Linked note'}
                 </span>
                 <span className="conn-rel">{conn.relationship}</span>
+                {conn.confidence && (
+                  <span className="conn-confidence">{Math.round(Number(conn.confidence) * 100)}%</span>
+                )}
               </div>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <p className="hint">
+            {note.is_processed ? 'No connections discovered yet' : 'Connections will appear after AI analysis'}
+          </p>
+        )}
+      </div>
 
       <div className="detail-actions">
         <button onClick={handleReprocess} className="btn-secondary">

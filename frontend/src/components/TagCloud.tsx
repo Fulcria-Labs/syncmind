@@ -18,7 +18,17 @@ export function TagCloud({ onTagClick }: TagCloudProps) {
   }
 
   const sorted = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]);
-  if (sorted.length === 0) return null;
+  if (sorted.length === 0) {
+    return (
+      <div className="tag-cloud">
+        <h3>Topics</h3>
+        <div className="tag-cloud-empty">
+          <p>No topics yet</p>
+          <p className="hint">AI will discover topics as you add notes</p>
+        </div>
+      </div>
+    );
+  }
 
   const maxCount = sorted[0][1];
 
