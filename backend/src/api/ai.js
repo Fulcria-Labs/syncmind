@@ -72,6 +72,94 @@ function getProvider() {
   return aiProvider;
 }
 
+// Shared note processing logic used by both the API endpoint and background processor
+async function processNote(dbPool, provider, noteId) {
+  const { rows } = await dbPool.query('SELECT * FROM notes WHERE id = $1', [noteId]);
+  if (!rows.length) return null;
+
+  const note = rows[0];
+
+  // Get other notes for connection finding
+  const { rows: otherNotes } = await dbPool.query(
+    'SELECT id, title, content, ai_tags FROM notes WHERE id != $1 AND owner_id = $2 LIMIT 20',
+    [note.id, note.owner_id]
+  );
+
+  const otherNotesContext = otherNotes
+    .map(n => `[${n.id}] "${n.title}": ${(n.content || '').slice(0, 200)}`)
+    .join('\n');
+
+  const text = await provider.chat(`Analyze this research note and respond with ONLY valid JSON (no markdown, no code blocks):
+
+TITLE: ${note.title}
+CONTENT: ${note.content || ''}
+SOURCE: ${note.source_url || 'none'}
+
+OTHER NOTES IN COLLECTION:
+${otherNotesContext || 'none'}
+
+Respond with this JSON structure:
+{
+  "summary": "2-3 sentence summary of key insights",
+  "tags": ["tag1", "tag2", "tag3"],
+  "connections": [{"note_id": "uuid", "relationship": "brief description"}],
+  "key_insights": ["insight1", "insight2"]
+}`);
+
+  let result;
+  try {
+    result = JSON.parse(text);
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/);
+    result = match ? JSON.parse(match[0]) : { summary: text, tags: [], connections: [], key_insights: [] };
+  }
+
+  // Update note with AI results (TEXT columns, comma-separated)
+  const now = new Date().toISOString();
+  await dbPool.query(
+    `UPDATE notes SET
+      ai_summary = $1,
+      ai_tags = $2,
+      ai_connections = $3,
+      is_processed = 1,
+      updated_at = $5
+    WHERE id = $4`,
+    [
+      result.summary || '',
+      (result.tags || []).join(','),
+      (result.connections || []).map(c => `${c.note_id}:${c.relationship}`).join(','),
+      note.id,
+      now
+    ]
+  );
+
+  // Create connection records
+  if (result.connections?.length) {
+    for (const conn of result.connections) {
+      const exists = otherNotes.find(n => n.id === conn.note_id);
+      if (exists) {
+        await dbPool.query(
+          `INSERT INTO connections (id, source_note_id, target_note_id, relationship, confidence, created_at)
+           VALUES (uuid_generate_v4(), $1, $2, $3, $4, NOW()::text)
+           ON CONFLICT DO NOTHING`,
+          [note.id, conn.note_id, conn.relationship, 0.8]
+        );
+      }
+    }
+  }
+
+  // Update tag counts
+  for (const tag of result.tags || []) {
+    await dbPool.query(
+      `INSERT INTO tags (name, note_count) VALUES ($1, 1)
+       ON CONFLICT (name) DO UPDATE SET note_count = tags.note_count + 1`,
+      [tag]
+    );
+  }
+
+  return result;
+}
+
 // AI provider status endpoint
 router.get('/status', (req, res) => {
   const provider = getProvider();
@@ -92,89 +180,8 @@ router.post('/process/:noteId', async (req, res) => {
   }
 
   try {
-    const { rows } = await pool.query('SELECT * FROM notes WHERE id = $1', [req.params.noteId]);
-    if (!rows.length) return res.status(404).json({ message: 'Note not found' });
-
-    const note = rows[0];
-
-    // Get other notes for connection finding
-    const { rows: otherNotes } = await pool.query(
-      'SELECT id, title, content, ai_tags FROM notes WHERE id != $1 AND owner_id = $2 LIMIT 20',
-      [note.id, note.owner_id]
-    );
-
-    const otherNotesContext = otherNotes
-      .map(n => `[${n.id}] "${n.title}": ${(n.content || '').slice(0, 200)}`)
-      .join('\n');
-
-    const text = await provider.chat(`Analyze this research note and respond with ONLY valid JSON (no markdown, no code blocks):
-
-TITLE: ${note.title}
-CONTENT: ${note.content || ''}
-SOURCE: ${note.source_url || 'none'}
-
-OTHER NOTES IN COLLECTION:
-${otherNotesContext || 'none'}
-
-Respond with this JSON structure:
-{
-  "summary": "2-3 sentence summary of key insights",
-  "tags": ["tag1", "tag2", "tag3"],
-  "connections": [{"note_id": "uuid", "relationship": "brief description"}],
-  "key_insights": ["insight1", "insight2"]
-}`);
-    let result;
-    try {
-      result = JSON.parse(text);
-    } catch {
-      // Try extracting JSON from response
-      const match = text.match(/\{[\s\S]*\}/);
-      result = match ? JSON.parse(match[0]) : { summary: text, tags: [], connections: [], key_insights: [] };
-    }
-
-    // Update note with AI results (TEXT columns, comma-separated)
-    const now = new Date().toISOString();
-    await pool.query(
-      `UPDATE notes SET
-        ai_summary = $1,
-        ai_tags = $2,
-        ai_connections = $3,
-        is_processed = 1,
-        updated_at = $5
-      WHERE id = $4`,
-      [
-        result.summary || '',
-        (result.tags || []).join(','),
-        (result.connections || []).map(c => `${c.note_id}:${c.relationship}`).join(','),
-        note.id,
-        now
-      ]
-    );
-
-    // Create connection records
-    if (result.connections?.length) {
-      for (const conn of result.connections) {
-        // Verify the target note exists
-        const exists = otherNotes.find(n => n.id === conn.note_id);
-        if (exists) {
-          await pool.query(
-            `INSERT INTO connections (id, source_note_id, target_note_id, relationship, confidence, created_at)
-             VALUES (uuid_generate_v4(), $1, $2, $3, $4, NOW()::text)
-             ON CONFLICT DO NOTHING`,
-            [note.id, conn.note_id, conn.relationship, 0.8]
-          );
-        }
-      }
-    }
-
-    // Update tag counts
-    for (const tag of result.tags || []) {
-      await pool.query(
-        `INSERT INTO tags (name, note_count) VALUES ($1, 1)
-         ON CONFLICT (name) DO UPDATE SET note_count = tags.note_count + 1`,
-        [tag]
-      );
-    }
+    const result = await processNote(pool, provider, req.params.noteId);
+    if (!result) return res.status(404).json({ message: 'Note not found' });
 
     res.json({ success: true, result });
   } catch (e) {
@@ -329,73 +336,10 @@ function startBackgroundProcessor() {
 
       for (const row of rows) {
         try {
-          const { rows: notes } = await pool.query('SELECT * FROM notes WHERE id = $1', [row.id]);
-          if (!notes.length) continue;
-          const note = notes[0];
-
-          const { rows: otherNotes } = await pool.query(
-            'SELECT id, title, content, ai_tags FROM notes WHERE id != $1 AND owner_id = $2 LIMIT 20',
-            [note.id, note.owner_id]
-          );
-
-          const otherNotesContext = otherNotes
-            .map(n => `[${n.id}] "${n.title}": ${(n.content || '').slice(0, 200)}`)
-            .join('\n');
-
-          const text = await provider.chat(`Analyze this research note and respond with ONLY valid JSON (no markdown, no code blocks):
-
-TITLE: ${note.title}
-CONTENT: ${note.content || ''}
-SOURCE: ${note.source_url || 'none'}
-
-OTHER NOTES IN COLLECTION:
-${otherNotesContext || 'none'}
-
-Respond with this JSON structure:
-{
-  "summary": "2-3 sentence summary of key insights",
-  "tags": ["tag1", "tag2", "tag3"],
-  "connections": [{"note_id": "uuid", "relationship": "brief description"}],
-  "key_insights": ["insight1", "insight2"]
-}`);
-
-          let result;
-          try {
-            result = JSON.parse(text);
-          } catch {
-            const match = text.match(/\{[\s\S]*\}/);
-            result = match ? JSON.parse(match[0]) : { summary: text, tags: [], connections: [], key_insights: [] };
+          const result = await processNote(pool, provider, row.id);
+          if (result) {
+            console.log(`[bg-processor] Processed note: ${row.id}`);
           }
-
-          const now = new Date().toISOString();
-          await pool.query(
-            `UPDATE notes SET ai_summary = $1, ai_tags = $2, ai_connections = $3, is_processed = 1, updated_at = $5 WHERE id = $4`,
-            [result.summary || '', (result.tags || []).join(','),
-             (result.connections || []).map(c => `${c.note_id}:${c.relationship}`).join(','),
-             note.id, now]
-          );
-
-          if (result.connections?.length) {
-            for (const conn of result.connections) {
-              if (otherNotes.find(n => n.id === conn.note_id)) {
-                await pool.query(
-                  `INSERT INTO connections (id, source_note_id, target_note_id, relationship, confidence, created_at)
-                   VALUES (uuid_generate_v4(), $1, $2, $3, $4, NOW()::text) ON CONFLICT DO NOTHING`,
-                  [note.id, conn.note_id, conn.relationship, 0.8]
-                );
-              }
-            }
-          }
-
-          for (const tag of result.tags || []) {
-            await pool.query(
-              `INSERT INTO tags (name, note_count) VALUES ($1, 1)
-               ON CONFLICT (name) DO UPDATE SET note_count = tags.note_count + 1`,
-              [tag]
-            );
-          }
-
-          console.log(`[bg-processor] Processed note: ${note.title}`);
         } catch (e) {
           console.error(`[bg-processor] Failed to process note ${row.id}:`, e.message);
         }
