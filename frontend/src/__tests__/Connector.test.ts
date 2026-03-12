@@ -25,7 +25,7 @@ if (typeof window === 'undefined') {
 }
 
 // Mock import.meta.env
-vi.stubGlobal('import', { meta: { env: {} } });
+(globalThis as any).__import_meta_env = {};
 
 import { SyncMindConnector } from '../lib/Connector';
 
