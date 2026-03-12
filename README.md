@@ -146,13 +146,13 @@ Works with Claude, OpenAI, or fully local Ollama. See [MASTRA_USAGE.md](MASTRA_U
 ## Testing
 
 ```bash
-# Run all 195 tests (backend + frontend)
+# Run all 361 tests (backend + frontend)
 npm test
 
-# Backend tests only (93 tests: AI processing, agent tools, data layer, auth, transactions)
+# Backend tests only (143 tests: AI processing, agent tools, data layer, auth, transactions)
 cd backend && npm test
 
-# Frontend tests only (102 tests: components, keyword extraction, schema, sync connector)
+# Frontend tests only (218 tests: components, keyword extraction, schema, sync connector)
 cd frontend && npm test
 ```
 
