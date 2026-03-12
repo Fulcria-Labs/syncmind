@@ -82,7 +82,7 @@ SyncMind introduces a novel architecture where **PowerSync sync streams serve as
 
 ## Technical Implementation (25%)
 
-- **67 passing tests** across 6 test files (36 backend + 31 frontend), covering AI response parsing, sync conflict handling, auth, schema validation, and local NLP
+- **195 passing tests** across 11 test files (93 backend + 102 frontend), covering AI response parsing, sync conflict handling, auth, schema validation, local NLP, agent tools, data integration, knowledge graph, and sync activity
 - **TypeScript frontend** with React + Vite, proper type safety throughout
 - **Clean architecture**: Frontend ↔ PowerSync Connector ↔ Sync Service ↔ PostgreSQL ↔ Express Backend ↔ Mastra Agent
 - **Multi-model AI**: Auto-selects Claude → OpenAI → Ollama with zero code changes
