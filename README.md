@@ -149,13 +149,13 @@ Works with Claude, OpenAI, or fully local Ollama. See [MASTRA_USAGE.md](MASTRA_U
 ## Testing
 
 ```bash
-# Run all 2,273 tests across 61 suites (backend + frontend)
+# Run all 2,368 tests across 63 suites (backend + frontend)
 npm test
 
 # Backend tests only (645 tests across 19 suites: AI processing, agent tools, data layer, auth, transactions, edge cases)
 cd backend && npm test
 
-# Frontend tests only (1,628 tests across 42 suites: components, keyword extraction, schema, sync connector, NoteSearch, SyncDashboard, SyncConflictViewer, E2E demo journey, integration)
+# Frontend tests only (1,723 tests across 44 suites: components, keyword extraction, schema, sync connector, NoteSearch, SyncDashboard, SyncConflictViewer, E2E demo journey, integration)
 cd frontend && npm test
 ```
 
@@ -172,6 +172,7 @@ syncmind/
       NoteDetail.tsx      # Full note view with AI insights
       AskAI.tsx           # Natural language Q&A
       AgentChat.tsx       # Mastra-powered research agent chat
+      SyncConflictViewer.tsx # Real-time sync conflict resolution viewer
     src/lib/
       AppSchema.ts        # PowerSync table definitions
       Connector.ts        # PowerSync backend connector
