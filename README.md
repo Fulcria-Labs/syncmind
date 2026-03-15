@@ -1,5 +1,7 @@
 # SyncMind - AI Research Assistant
 
+[![CI](https://github.com/Fulcria-Labs/syncmind/actions/workflows/ci.yml/badge.svg)](https://github.com/Fulcria-Labs/syncmind/actions/workflows/ci.yml)
+
 An offline-first AI research assistant that syncs across devices. Built with PowerSync, React, and Claude AI.
 
 **Works offline. Thinks with AI. Syncs everywhere.**
