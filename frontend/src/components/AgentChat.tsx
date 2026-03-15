@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { connector } from '../lib/PowerSyncProvider';
 
@@ -7,6 +7,7 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6061';
 interface ToolCall {
   toolName: string;
   args?: Record<string, unknown>;
+  resultSummary?: string;
 }
 
 interface ChatMessage {
@@ -23,12 +24,77 @@ const TOOL_LABELS: Record<string, string> = {
   'getConnectionGraphTool': 'Explored connections',
 };
 
+const TOOL_ICONS: Record<string, string> = {
+  'searchNotesTool': '\uD83D\uDD0D',
+  'getNoteDetailTool': '\uD83D\uDCDD',
+  'listAllNotesTool': '\uD83D\uDCCB',
+  'getTagsTool': '\uD83C\uDFF7\uFE0F',
+  'getConnectionGraphTool': '\uD83D\uDD17',
+};
+
+function formatToolSummary(tc: ToolCall): string {
+  const label = TOOL_LABELS[tc.toolName] || tc.toolName;
+  const icon = TOOL_ICONS[tc.toolName] || '\u2699\uFE0F';
+
+  if (tc.resultSummary) {
+    return `${icon} ${label}: ${tc.resultSummary}`;
+  }
+
+  // Build a brief summary from args
+  const args = tc.args;
+  if (!args) return `${icon} ${label}`;
+
+  if (tc.toolName === 'searchNotesTool' && args.query) {
+    return `${icon} Searched '${args.query}'`;
+  }
+  if (tc.toolName === 'getNoteDetailTool' && args.note_id) {
+    const shortId = String(args.note_id).slice(0, 8);
+    return `${icon} Read note ${shortId}...`;
+  }
+  if (tc.toolName === 'listAllNotesTool') {
+    return `${icon} Listed all notes`;
+  }
+
+  return `${icon} ${label}`;
+}
+
 export function AgentChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [expandedTools, setExpandedTools] = useState<Set<number>>(new Set());
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const handleCopy = useCallback(async (text: string, msgIdx: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedIdx(msgIdx);
+      setTimeout(() => setCopiedIdx(null), 2000);
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setCopiedIdx(msgIdx);
+      setTimeout(() => setCopiedIdx(null), 2000);
+    }
+  }, []);
+
+  const toggleToolExpansion = useCallback((msgIdx: number) => {
+    setExpandedTools(prev => {
+      const next = new Set(prev);
+      if (next.has(msgIdx)) {
+        next.delete(msgIdx);
+      } else {
+        next.add(msgIdx);
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -61,7 +127,8 @@ export function AgentChat() {
         const data = await res.json();
         const toolsUsed: ToolCall[] = (data.toolCalls || []).map((tc: any) => ({
           toolName: tc.toolName || tc.name || 'unknown',
-          args: tc.args
+          args: tc.args,
+          resultSummary: tc.resultSummary || undefined
         }));
         setMessages([...updated, {
           role: 'assistant',
@@ -109,16 +176,38 @@ export function AgentChat() {
         {messages.map((msg, i) => (
           <div key={i} className={`agent-msg agent-msg-${msg.role}`}>
             {msg.role === 'assistant' && msg.toolsUsed && msg.toolsUsed.length > 0 && (
-              <div className="agent-tools-used">
-                {msg.toolsUsed.map((tc, j) => (
-                  <span key={j} className="tool-badge">
-                    {TOOL_LABELS[tc.toolName] || tc.toolName}
+              <div className="agent-tools-trace">
+                <button
+                  className="tool-trace-toggle"
+                  onClick={() => toggleToolExpansion(i)}
+                >
+                  <span className="tool-trace-icon">{expandedTools.has(i) ? '\u25BC' : '\u25B6'}</span>
+                  <span className="tool-trace-summary">
+                    Used {msg.toolsUsed.length} tool{msg.toolsUsed.length > 1 ? 's' : ''}
                   </span>
-                ))}
+                </button>
+                {expandedTools.has(i) && (
+                  <div className="tool-trace-details">
+                    {msg.toolsUsed.map((tc, j) => (
+                      <div key={j} className="tool-trace-item">
+                        {formatToolSummary(tc)}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             {msg.role === 'assistant' ? (
-              <ReactMarkdown>{msg.content}</ReactMarkdown>
+              <>
+                <ReactMarkdown>{msg.content}</ReactMarkdown>
+                <button
+                  className="copy-btn"
+                  onClick={() => handleCopy(msg.content, i)}
+                  title="Copy response"
+                >
+                  {copiedIdx === i ? 'Copied!' : 'Copy'}
+                </button>
+              </>
             ) : (
               <p>{msg.content}</p>
             )}

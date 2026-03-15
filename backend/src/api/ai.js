@@ -369,9 +369,47 @@ router.post('/agent/chat', async (req, res) => {
     ];
 
     const response = await agent.generate(messages);
+
+    // Enrich tool calls with result summaries for the frontend trace display
+    const enrichedToolCalls = (response.toolCalls || []).map(tc => {
+      const toolName = tc.toolName || tc.name || 'unknown';
+      const args = tc.args || {};
+      let resultSummary = '';
+
+      // Generate brief human-readable summary based on tool type and result
+      if (tc.result) {
+        if (toolName === 'searchNotesTool' && typeof tc.result === 'object') {
+          const count = tc.result.count ?? tc.result.notes?.length ?? 0;
+          resultSummary = `${count} result${count !== 1 ? 's' : ''}`;
+        } else if (toolName === 'getNoteDetailTool' && typeof tc.result === 'object') {
+          if (tc.result.error) {
+            resultSummary = tc.result.error;
+          } else if (tc.result.note?.title) {
+            const connCount = tc.result.connections?.length || 0;
+            resultSummary = `"${tc.result.note.title}" (${connCount} connection${connCount !== 1 ? 's' : ''})`;
+          }
+        } else if (toolName === 'listAllNotesTool' && typeof tc.result === 'object') {
+          const count = tc.result.count ?? tc.result.notes?.length ?? 0;
+          resultSummary = `${count} note${count !== 1 ? 's' : ''}`;
+        } else if (toolName === 'getTagsTool' && typeof tc.result === 'object') {
+          const count = tc.result.tags?.length ?? 0;
+          resultSummary = `${count} tag${count !== 1 ? 's' : ''}`;
+        } else if (toolName === 'getConnectionGraphTool' && typeof tc.result === 'object') {
+          const count = tc.result.count ?? tc.result.connections?.length ?? 0;
+          resultSummary = `${count} connection${count !== 1 ? 's' : ''}`;
+        }
+      }
+
+      return {
+        toolName,
+        args,
+        ...(resultSummary ? { resultSummary } : {})
+      };
+    });
+
     res.json({
       reply: response.text,
-      toolCalls: response.toolCalls || [],
+      toolCalls: enrichedToolCalls,
       usage: response.usage || null
     });
   } catch (e) {

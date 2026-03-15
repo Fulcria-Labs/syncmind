@@ -615,3 +615,187 @@ describe('Brief Endpoint - Topic Filtering', () => {
     expect(context.split('\n')).toHaveLength(2);
   });
 });
+
+// ─── Enriched Tool Call Response ───
+
+describe('Enriched Tool Call Response', () => {
+  // Mirrors the enrichment logic from ai.js agent/chat endpoint
+  function enrichToolCalls(toolCalls) {
+    return (toolCalls || []).map(tc => {
+      const toolName = tc.toolName || tc.name || 'unknown';
+      const args = tc.args || {};
+      let resultSummary = '';
+
+      if (tc.result) {
+        if (toolName === 'searchNotesTool' && typeof tc.result === 'object') {
+          const count = tc.result.count ?? tc.result.notes?.length ?? 0;
+          resultSummary = `${count} result${count !== 1 ? 's' : ''}`;
+        } else if (toolName === 'getNoteDetailTool' && typeof tc.result === 'object') {
+          if (tc.result.error) {
+            resultSummary = tc.result.error;
+          } else if (tc.result.note?.title) {
+            const connCount = tc.result.connections?.length || 0;
+            resultSummary = `"${tc.result.note.title}" (${connCount} connection${connCount !== 1 ? 's' : ''})`;
+          }
+        } else if (toolName === 'listAllNotesTool' && typeof tc.result === 'object') {
+          const count = tc.result.count ?? tc.result.notes?.length ?? 0;
+          resultSummary = `${count} note${count !== 1 ? 's' : ''}`;
+        } else if (toolName === 'getTagsTool' && typeof tc.result === 'object') {
+          const count = tc.result.tags?.length ?? 0;
+          resultSummary = `${count} tag${count !== 1 ? 's' : ''}`;
+        } else if (toolName === 'getConnectionGraphTool' && typeof tc.result === 'object') {
+          const count = tc.result.count ?? tc.result.connections?.length ?? 0;
+          resultSummary = `${count} connection${count !== 1 ? 's' : ''}`;
+        }
+      }
+
+      return {
+        toolName,
+        args,
+        ...(resultSummary ? { resultSummary } : {})
+      };
+    });
+  }
+
+  it('should enrich searchNotesTool with result count', () => {
+    const toolCalls = [{
+      toolName: 'searchNotesTool',
+      args: { query: 'AI' },
+      result: { notes: [{ id: 'n1' }, { id: 'n2' }, { id: 'n3' }], count: 3 }
+    }];
+
+    const enriched = enrichToolCalls(toolCalls);
+    expect(enriched[0].resultSummary).toBe('3 results');
+  });
+
+  it('should handle singular result count', () => {
+    const toolCalls = [{
+      toolName: 'searchNotesTool',
+      args: { query: 'specific' },
+      result: { notes: [{ id: 'n1' }], count: 1 }
+    }];
+
+    const enriched = enrichToolCalls(toolCalls);
+    expect(enriched[0].resultSummary).toBe('1 result');
+  });
+
+  it('should enrich getNoteDetailTool with note title', () => {
+    const toolCalls = [{
+      toolName: 'getNoteDetailTool',
+      args: { note_id: 'n1' },
+      result: {
+        note: { id: 'n1', title: 'RAG Deep Dive' },
+        connections: [{ target_note_id: 'n2' }, { target_note_id: 'n3' }]
+      }
+    }];
+
+    const enriched = enrichToolCalls(toolCalls);
+    expect(enriched[0].resultSummary).toBe('"RAG Deep Dive" (2 connections)');
+  });
+
+  it('should handle getNoteDetailTool error result', () => {
+    const toolCalls = [{
+      toolName: 'getNoteDetailTool',
+      args: { note_id: 'nonexistent' },
+      result: { error: 'Note not found' }
+    }];
+
+    const enriched = enrichToolCalls(toolCalls);
+    expect(enriched[0].resultSummary).toBe('Note not found');
+  });
+
+  it('should enrich listAllNotesTool with note count', () => {
+    const toolCalls = [{
+      toolName: 'listAllNotesTool',
+      args: { owner_id: 'default' },
+      result: { notes: Array.from({ length: 15 }, (_, i) => ({ id: `n${i}` })), count: 15 }
+    }];
+
+    const enriched = enrichToolCalls(toolCalls);
+    expect(enriched[0].resultSummary).toBe('15 notes');
+  });
+
+  it('should enrich getTagsTool with tag count', () => {
+    const toolCalls = [{
+      toolName: 'getTagsTool',
+      args: {},
+      result: { tags: [{ name: 'ai' }, { name: 'ml' }, { name: 'research' }] }
+    }];
+
+    const enriched = enrichToolCalls(toolCalls);
+    expect(enriched[0].resultSummary).toBe('3 tags');
+  });
+
+  it('should enrich getConnectionGraphTool with connection count', () => {
+    const toolCalls = [{
+      toolName: 'getConnectionGraphTool',
+      args: { owner_id: 'default' },
+      result: { connections: [{ source: 'n1', target: 'n2' }], count: 1 }
+    }];
+
+    const enriched = enrichToolCalls(toolCalls);
+    expect(enriched[0].resultSummary).toBe('1 connection');
+  });
+
+  it('should not include resultSummary when no result present', () => {
+    const toolCalls = [{
+      toolName: 'searchNotesTool',
+      args: { query: 'test' }
+    }];
+
+    const enriched = enrichToolCalls(toolCalls);
+    expect(enriched[0].resultSummary).toBeUndefined();
+    expect(enriched[0]).not.toHaveProperty('resultSummary');
+  });
+
+  it('should handle multiple tool calls with mixed results', () => {
+    const toolCalls = [
+      { toolName: 'searchNotesTool', args: { query: 'ML' }, result: { count: 2, notes: [{}, {}] } },
+      { toolName: 'getTagsTool', args: {} },
+      { toolName: 'listAllNotesTool', args: {}, result: { count: 10, notes: [] } },
+    ];
+
+    const enriched = enrichToolCalls(toolCalls);
+    expect(enriched).toHaveLength(3);
+    expect(enriched[0].resultSummary).toBe('2 results');
+    expect(enriched[1]).not.toHaveProperty('resultSummary');
+    expect(enriched[2].resultSummary).toBe('10 notes');
+  });
+
+  it('should handle empty tool calls array', () => {
+    const enriched = enrichToolCalls([]);
+    expect(enriched).toEqual([]);
+  });
+
+  it('should handle null tool calls', () => {
+    const enriched = enrichToolCalls(null);
+    expect(enriched).toEqual([]);
+  });
+
+  it('should handle tool calls with name instead of toolName', () => {
+    const toolCalls = [{
+      name: 'searchNotesTool',
+      args: { query: 'test' },
+      result: { count: 0, notes: [] }
+    }];
+
+    const enriched = enrichToolCalls(toolCalls);
+    expect(enriched[0].toolName).toBe('searchNotesTool');
+    expect(enriched[0].resultSummary).toBe('0 results');
+  });
+
+  it('should handle zero results across tool types', () => {
+    const toolCalls = [
+      { toolName: 'searchNotesTool', args: {}, result: { count: 0, notes: [] } },
+      { toolName: 'listAllNotesTool', args: {}, result: { count: 0, notes: [] } },
+      { toolName: 'getTagsTool', args: {}, result: { tags: [] } },
+      { toolName: 'getConnectionGraphTool', args: {}, result: { count: 0, connections: [] } },
+    ];
+
+    const enriched = enrichToolCalls(toolCalls);
+    expect(enriched[0].resultSummary).toBe('0 results');
+    expect(enriched[1].resultSummary).toBe('0 notes');
+    expect(enriched[2].resultSummary).toBe('0 tags');
+    expect(enriched[3].resultSummary).toBe('0 connections');
+  });
+});

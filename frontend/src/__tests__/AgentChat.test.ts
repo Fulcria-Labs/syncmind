@@ -2,6 +2,12 @@ import { describe, it, expect } from 'vitest';
 
 // ─── Extract and test pure logic from AgentChat.tsx ───
 
+interface ToolCall {
+  toolName: string;
+  args?: Record<string, unknown>;
+  resultSummary?: string;
+}
+
 const TOOL_LABELS: Record<string, string> = {
   'searchNotesTool': 'Searched notes',
   'getNoteDetailTool': 'Read note details',
@@ -9,6 +15,39 @@ const TOOL_LABELS: Record<string, string> = {
   'getTagsTool': 'Analyzed tags',
   'getConnectionGraphTool': 'Explored connections',
 };
+
+const TOOL_ICONS: Record<string, string> = {
+  'searchNotesTool': '\uD83D\uDD0D',
+  'getNoteDetailTool': '\uD83D\uDCDD',
+  'listAllNotesTool': '\uD83D\uDCCB',
+  'getTagsTool': '\uD83C\uDFF7\uFE0F',
+  'getConnectionGraphTool': '\uD83D\uDD17',
+};
+
+function formatToolSummary(tc: ToolCall): string {
+  const label = TOOL_LABELS[tc.toolName] || tc.toolName;
+  const icon = TOOL_ICONS[tc.toolName] || '\u2699\uFE0F';
+
+  if (tc.resultSummary) {
+    return `${icon} ${label}: ${tc.resultSummary}`;
+  }
+
+  const args = tc.args;
+  if (!args) return `${icon} ${label}`;
+
+  if (tc.toolName === 'searchNotesTool' && args.query) {
+    return `${icon} Searched '${args.query}'`;
+  }
+  if (tc.toolName === 'getNoteDetailTool' && args.note_id) {
+    const shortId = String(args.note_id).slice(0, 8);
+    return `${icon} Read note ${shortId}...`;
+  }
+  if (tc.toolName === 'listAllNotesTool') {
+    return `${icon} Listed all notes`;
+  }
+
+  return `${icon} ${label}`;
+}
 
 // ─── Tool Label Mapping ───
 
@@ -196,5 +235,162 @@ describe('AgentChat - Error Handling', () => {
   it('should create offline error message', () => {
     const offlineMsg = { role: 'assistant' as const, content: 'Failed to reach the agent. Are you online?' };
     expect(offlineMsg.content).toContain('online');
+  });
+});
+
+// ─── Tool Icons ───
+
+describe('AgentChat - Tool Icons', () => {
+  it('should have icons for all 5 known tools', () => {
+    expect(Object.keys(TOOL_ICONS)).toHaveLength(5);
+  });
+
+  it('should map icons for each tool', () => {
+    expect(TOOL_ICONS['searchNotesTool']).toBeDefined();
+    expect(TOOL_ICONS['getNoteDetailTool']).toBeDefined();
+    expect(TOOL_ICONS['listAllNotesTool']).toBeDefined();
+    expect(TOOL_ICONS['getTagsTool']).toBeDefined();
+    expect(TOOL_ICONS['getConnectionGraphTool']).toBeDefined();
+  });
+
+  it('should have consistent keys between TOOL_LABELS and TOOL_ICONS', () => {
+    const labelKeys = Object.keys(TOOL_LABELS).sort();
+    const iconKeys = Object.keys(TOOL_ICONS).sort();
+    expect(labelKeys).toEqual(iconKeys);
+  });
+});
+
+// ─── formatToolSummary ───
+
+describe('AgentChat - formatToolSummary', () => {
+  it('should format search tool with query arg', () => {
+    const tc: ToolCall = { toolName: 'searchNotesTool', args: { query: 'embeddings' } };
+    const result = formatToolSummary(tc);
+    expect(result).toContain('Searched');
+    expect(result).toContain('embeddings');
+  });
+
+  it('should format search tool with resultSummary', () => {
+    const tc: ToolCall = { toolName: 'searchNotesTool', args: { query: 'RAG' }, resultSummary: '3 results' };
+    const result = formatToolSummary(tc);
+    expect(result).toContain('Searched notes');
+    expect(result).toContain('3 results');
+  });
+
+  it('should format note detail tool with shortened ID', () => {
+    const tc: ToolCall = { toolName: 'getNoteDetailTool', args: { note_id: 'abcdef12-3456-7890' } };
+    const result = formatToolSummary(tc);
+    expect(result).toContain('Read note');
+    expect(result).toContain('abcdef12');
+    expect(result).toContain('...');
+  });
+
+  it('should format list all notes tool', () => {
+    const tc: ToolCall = { toolName: 'listAllNotesTool', args: {} };
+    const result = formatToolSummary(tc);
+    expect(result).toContain('Listed all notes');
+  });
+
+  it('should format tags tool with no args', () => {
+    const tc: ToolCall = { toolName: 'getTagsTool' };
+    const result = formatToolSummary(tc);
+    expect(result).toContain('Analyzed tags');
+  });
+
+  it('should format connection graph tool', () => {
+    const tc: ToolCall = { toolName: 'getConnectionGraphTool', args: { owner_id: 'default' } };
+    const result = formatToolSummary(tc);
+    expect(result).toContain('Explored connections');
+  });
+
+  it('should use resultSummary over args when both present', () => {
+    const tc: ToolCall = {
+      toolName: 'searchNotesTool',
+      args: { query: 'machine learning' },
+      resultSummary: '5 results'
+    };
+    const result = formatToolSummary(tc);
+    // resultSummary takes priority, so it should show label + summary, not args
+    expect(result).toContain('5 results');
+    expect(result).toContain('Searched notes');
+  });
+
+  it('should fall back to toolName for unknown tools', () => {
+    const tc: ToolCall = { toolName: 'unknownCustomTool', args: { foo: 'bar' } };
+    const result = formatToolSummary(tc);
+    expect(result).toContain('unknownCustomTool');
+  });
+
+  it('should use gear icon for unknown tools', () => {
+    const tc: ToolCall = { toolName: 'unknownCustomTool' };
+    const result = formatToolSummary(tc);
+    expect(result).toContain('\u2699');
+  });
+
+  it('should handle tool with no args and no resultSummary', () => {
+    const tc: ToolCall = { toolName: 'getTagsTool' };
+    const result = formatToolSummary(tc);
+    expect(result).toBe(`${TOOL_ICONS['getTagsTool']} Analyzed tags`);
+  });
+});
+
+// ─── Tool Call Processing with resultSummary ───
+
+describe('AgentChat - Tool Call Processing with resultSummary', () => {
+  it('should extract resultSummary from API response', () => {
+    const apiResponse = {
+      reply: 'Found relevant notes...',
+      toolCalls: [
+        { toolName: 'searchNotesTool', args: { query: 'AI' }, resultSummary: '4 results' },
+      ]
+    };
+
+    const toolsUsed: ToolCall[] = (apiResponse.toolCalls || []).map((tc: any) => ({
+      toolName: tc.toolName || tc.name || 'unknown',
+      args: tc.args,
+      resultSummary: tc.resultSummary || undefined
+    }));
+
+    expect(toolsUsed).toHaveLength(1);
+    expect(toolsUsed[0].resultSummary).toBe('4 results');
+  });
+
+  it('should handle missing resultSummary', () => {
+    const apiResponse = {
+      reply: 'Result',
+      toolCalls: [
+        { toolName: 'getTagsTool', args: {} },
+      ]
+    };
+
+    const toolsUsed: ToolCall[] = (apiResponse.toolCalls || []).map((tc: any) => ({
+      toolName: tc.toolName || tc.name || 'unknown',
+      args: tc.args,
+      resultSummary: tc.resultSummary || undefined
+    }));
+
+    expect(toolsUsed[0].resultSummary).toBeUndefined();
+  });
+
+  it('should handle multiple tool calls with mixed resultSummary presence', () => {
+    const apiResponse = {
+      reply: 'Analysis complete',
+      toolCalls: [
+        { toolName: 'searchNotesTool', args: { query: 'ML' }, resultSummary: '2 results' },
+        { toolName: 'getTagsTool', args: {} },
+        { toolName: 'listAllNotesTool', args: {}, resultSummary: '10 notes' },
+      ]
+    };
+
+    const toolsUsed: ToolCall[] = (apiResponse.toolCalls || []).map((tc: any) => ({
+      toolName: tc.toolName || tc.name || 'unknown',
+      args: tc.args,
+      resultSummary: tc.resultSummary || undefined
+    }));
+
+    expect(toolsUsed).toHaveLength(3);
+    expect(toolsUsed[0].resultSummary).toBe('2 results');
+    expect(toolsUsed[1].resultSummary).toBeUndefined();
+    expect(toolsUsed[2].resultSummary).toBe('10 notes');
   });
 });

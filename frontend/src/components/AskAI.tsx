@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useQuery } from '@powersync/react';
 import { connector } from '../lib/PowerSyncProvider';
@@ -10,6 +10,25 @@ export function AskAI() {
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(false);
   const [isLocalResult, setIsLocalResult] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, []);
 
   // Keep all notes available for local search fallback
   const { data: allNotes } = useQuery<{
@@ -82,6 +101,13 @@ export function AskAI() {
             <div className="local-badge">Searched locally via PowerSync SQLite</div>
           )}
           <ReactMarkdown>{answer}</ReactMarkdown>
+          <button
+            className="copy-btn"
+            onClick={() => handleCopy(answer)}
+            title="Copy response"
+          >
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
         </div>
       )}
     </div>
