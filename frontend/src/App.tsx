@@ -6,6 +6,7 @@ import { NoteEditor } from './components/NoteEditor';
 import { NoteList } from './components/NoteList';
 import { NoteDetail } from './components/NoteDetail';
 import { AskAI } from './components/AskAI';
+import { NoteSearch } from './components/NoteSearch';
 import { KnowledgeGraph } from './components/KnowledgeGraph';
 import { TagCloud } from './components/TagCloud';
 import { SyncActivityFeed } from './components/SyncActivityFeed';
@@ -44,6 +45,7 @@ function AppContent() {
   const [selectedNote, setSelectedNote] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAsk, setShowAsk] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
   const [briefLoading, setBriefLoading] = useState(false);
   const [briefContent, setBriefContent] = useState('');
@@ -80,13 +82,14 @@ function AppContent() {
       searchInput?.focus();
     } else if (e.key === 'Escape') {
       if (showEditor) setShowEditor(false);
+      else if (showSearch) setShowSearch(false);
       else if (showAsk) setShowAsk(false);
       else if (briefContent) setBriefContent('');
       else if (selectedNote) setSelectedNote(null);
     } else if (e.key === 'g' && !e.metaKey && !e.ctrlKey) {
       setViewMode(prev => prev === 'list' ? 'graph' : 'list');
     }
-  }, [showEditor, showAsk, briefContent, selectedNote]);
+  }, [showEditor, showSearch, showAsk, briefContent, selectedNote]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -152,6 +155,9 @@ function AppContent() {
             Graph
           </button>
         </div>
+        <button onClick={() => setShowSearch(!showSearch)} className="btn-secondary">
+          {showSearch ? 'Close Search' : 'Deep Search'}
+        </button>
         <button onClick={() => setShowAsk(!showAsk)} className="btn-secondary">
           {showAsk ? 'Close' : 'Ask AI'}
         </button>
@@ -166,6 +172,16 @@ function AppContent() {
       </div>
 
       {showAsk && <AskAI />}
+
+      {showSearch && (
+        <NoteSearch
+          onSelectNote={(id) => {
+            setSelectedNote(id);
+            setShowSearch(false);
+          }}
+          onClose={() => setShowSearch(false)}
+        />
+      )}
 
       {briefContent && (
         <div className="brief-panel">
