@@ -10,6 +10,7 @@ import { NoteSearch } from './components/NoteSearch';
 import { KnowledgeGraph } from './components/KnowledgeGraph';
 import { TagCloud } from './components/TagCloud';
 import { SyncActivityFeed } from './components/SyncActivityFeed';
+import { SyncDashboard } from './components/SyncDashboard';
 import { AgentChat } from './components/AgentChat';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
@@ -128,6 +129,7 @@ function AppContent() {
               {aiStatus.local ? 'Local AI' : `${aiStatus.provider}`}
             </div>
           )}
+          <SyncDashboard />
           <SyncActivityFeed />
           <SyncStatus />
         </div>
