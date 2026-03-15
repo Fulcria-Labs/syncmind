@@ -25,6 +25,7 @@ An offline-first AI research assistant that syncs across devices. Built with Pow
 - **Research Agent Chat**: Conversational AI agent (Mastra-powered) that uses tools to search notes, find connections, and synthesize research.
 - **Ask Your Research**: Query across all your notes using natural language.
 - **Research Brief**: One-click AI-generated summary across all your notes.
+- **Sync Conflict Viewer**: Visual timeline of sync conflict resolution. See how PowerSync handles concurrent edits across devices — field-level diffs, resolution strategies, and conflict statistics.
 - **Cross-Device Sync**: PowerSync Sync Streams keep data in sync across all connected devices.
 - **Local-First Editing**: Full CRUD operations on local SQLite. Edits queue and sync when online.
 
@@ -148,13 +149,13 @@ Works with Claude, OpenAI, or fully local Ollama. See [MASTRA_USAGE.md](MASTRA_U
 ## Testing
 
 ```bash
-# Run all 2,150 tests across 60 suites (backend + frontend)
+# Run all 2,273 tests across 61 suites (backend + frontend)
 npm test
 
 # Backend tests only (645 tests across 19 suites: AI processing, agent tools, data layer, auth, transactions, edge cases)
 cd backend && npm test
 
-# Frontend tests only (1,505 tests across 41 suites: components, keyword extraction, schema, sync connector, NoteSearch, SyncDashboard, E2E demo journey, integration)
+# Frontend tests only (1,628 tests across 42 suites: components, keyword extraction, schema, sync connector, NoteSearch, SyncDashboard, SyncConflictViewer, E2E demo journey, integration)
 cd frontend && npm test
 ```
 
